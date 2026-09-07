@@ -2,10 +2,14 @@
   "go.toolsEnvVars": {
     "GOFLAGS": "-mod=mod"
   },
-  "go.testFlags": ["-v"],
+  "go.testFlags": [
+    "-v"
+  ],
   "go.lintOnSave": "package",
   "go.vetOnSave": "package",
   "gopls": {
     "ui.semanticTokens": true
-  }
+  },
+  "git.autoRepositoryDetection": "subFolders",
+  "git.repositoryScanMaxDepth": 3
 }
