@@ -1,0 +1,18 @@
+# Build output
+/bin/
+/build/bin/
+*.exe
+*.log
+coverage/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/*
+!frontend/dist/.gitkeep
+frontend/wailsjs/go/
+frontend/package.json.md5
+
+# OS litter
+.DS_Store
+Thumbs.db
+desktop.ini

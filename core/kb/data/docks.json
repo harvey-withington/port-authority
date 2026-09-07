@@ -1,0 +1,59 @@
+{
+  "$comment": "Known docks and hubs. IDs are lower-case hex vid:pid. 'hubs' lists every logical hub the dock exposes so its internal chain counts as one hop. 'port_map' pins logical hub ports to printed labels; only entries verified on real hardware belong here. Community-contributable.",
+  "generic_internal_hubs": {
+    "8087:0b40": "Intel Goshen Ridge USB hub, present inside most Thunderbolt 4 docks"
+  },
+  "docks": [
+    {
+      "id": "caldigit-ts4",
+      "name": "CalDigit TS4",
+      "hubs": ["2188:5802", "2188:5500", "2188:5510", "2188:5501", "2188:5511", "2188:5512", "2188:5502"],
+      "uplink": { "kind": "thunderbolt4", "max_link": "usb4_40" },
+      "ports": [
+        {
+          "label": "Thunderbolt 4",
+          "position": "rear",
+          "connector": "usb-c",
+          "max_link": "usb4_40",
+          "count": 2,
+          "notes": "Lightning-bolt icon. USB4 devices tunnel PCIe here and leave the USB tree; a USB4 SSD shows up as an NVMe disk."
+        },
+        {
+          "label": "USB-C Data",
+          "position": "front",
+          "connector": "usb-c",
+          "max_link": "ss10",
+          "count": 1,
+          "notes": "Same connector shape as the Thunderbolt ports but 10 Gbps. Label confirmed on hardware 2026-09-07."
+        },
+        {
+          "label": "USB-C",
+          "position": "rear",
+          "connector": "usb-c",
+          "max_link": "ss10",
+          "count": 2,
+          "notes": "Count unverified."
+        },
+        {
+          "label": "USB-A",
+          "position": "front",
+          "connector": "usb-a",
+          "max_link": "ss10",
+          "count": 1,
+          "notes": "Unverified."
+        },
+        {
+          "label": "USB-A",
+          "position": "rear",
+          "connector": "usb-a",
+          "max_link": "ss10",
+          "count": 4,
+          "notes": "Count unverified."
+        }
+      ],
+      "port_map": [
+        { "hub": "2188:5501", "port": 3, "label": "USB-C Data", "position": "front", "verified": "2026-09-07 on DEVIANT" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,377 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* ---------------------------------------------------------------------
+   Design tokens. Dark first; the light palette follows under both the
+   OS preference and an explicit data-theme="light".
+   Colour families:
+     surface / border / text / accent / semantic  - chrome
+     --severity-*     insight severities
+     --conn-*         connection badge
+     --link-*         link health (is the negotiated link right?)
+     --class-*        device class hues (recognition aid, always with icon)
+     --speed-*        speed ramp, cool -> hot (always with a text label)
+   Palettes were validated with the dataviz skill's validate_palette.js.
+   --------------------------------------------------------------------- */
+:root {
+  color-scheme: dark;
+
+  /* Surface */
+  --bg-base: #18181b;
+  --bg-surface: #1c1c1f;
+  --bg-elevated: #27272a;
+  --bg-overlay: rgba(0, 0, 0, 0.5);
+  --bg-subtle: rgba(255, 255, 255, 0.05);
+  --bg-subtle-hover: rgba(255, 255, 255, 0.1);
+
+  /* Borders */
+  --border: #3f3f46;
+  --border-muted: #2e2e32;
+  --border-hover: #52525b;
+
+  /* Text */
+  --text-primary: #f5f5f5;
+  --text-strong: #e4e4e7;
+  --text-body: #d4d4d8;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --text-faint: #52525b;
+
+  /* Accent */
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+  --accent-light: #818cf8;
+  --accent-glow-1: rgba(99, 102, 241, 0.4);
+  --accent-glow-2: rgba(99, 102, 241, 0.2);
+  --accent-glow-3: rgba(99, 102, 241, 0.1);
+
+  /* Semantic */
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+  --success-bg: #14532d;
+  --success-text: #bbf7d0;
+  --danger-bg: #450a0a;
+  --danger-text: #fecaca;
+  --warning-bg: #451a03;
+  --warning-text: #fed7aa;
+  --info-bg: #172554;
+  --info-text: #bfdbfe;
+
+  /* Text on solid colour fills (speed badges, chips) */
+  --on-color: #ffffff;
+  --on-color-dark: #111111;
+  --on-color-muted: rgba(255, 255, 255, 0.75);
+
+  /* Insight severity */
+  --severity-info: var(--info);
+  --severity-warning: var(--warning);
+  --severity-critical: var(--danger);
+  --severity-info-bg: var(--info-bg);
+  --severity-warning-bg: var(--warning-bg);
+  --severity-critical-bg: var(--danger-bg);
+
+  /* Connection badge */
+  --conn-live: var(--success);
+  --conn-polling: var(--warning);
+  --conn-offline: var(--danger);
+  --conn-connecting: var(--text-muted);
+
+  /* Link health ring */
+  --link-good: var(--success);
+  --link-slow: var(--warning);
+  --link-idle: var(--text-faint);
+
+  /* Device class hues (dark steps, OKLCH L 0.55-0.66) */
+  --class-storage: #3986e4;
+  --class-video: #cd5394;
+  --class-audio: #8d77e5;
+  --class-hid: #00a67c;
+  --class-network: #dc631e;
+  --class-display: #bc8900;
+  --class-wireless: #408500;
+  --class-printer: #e14754;
+  --class-serial: #9a6a17;
+  --class-imaging: #00a2b7;
+  --class-vendor: #a772b2;
+  --class-hub: #8b8f99;
+  --class-composite: #9aa39a;
+  --class-unknown: #9a9a9a;
+
+  /* Speed ramp, cool -> hot. Each *-ink is the text colour on a solid fill. */
+  --speed-unknown: #52525b;
+  --speed-unknown-ink: var(--on-color);
+  --speed-none: #3f3f46;
+  --speed-none-ink: var(--on-color-muted);
+  --speed-low: #7756d0;
+  --speed-low-ink: var(--on-color);
+  --speed-full: #5492ec;
+  --speed-full-ink: var(--on-color-dark);
+  --speed-high: #007c9c;
+  --speed-high-ink: var(--on-color);
+  --speed-ss5: #00ad88;
+  --speed-ss5-ink: var(--on-color-dark);
+  --speed-ss10: #2d8014;
+  --speed-ss10-ink: var(--on-color);
+  --speed-ss20: #ae9000;
+  --speed-ss20-ink: var(--on-color-dark);
+  --speed-usb4-20: #be5500;
+  --speed-usb4-20-ink: var(--on-color);
+  --speed-usb4-40: #b40046;
+  --speed-usb4-40-ink: var(--on-color);
+  --speed-usb4-80: #eb47a9;
+  --speed-usb4-80-ink: var(--on-color-dark);
+
+  /* Meter */
+  --meter-track: var(--bg-subtle);
+  --meter-height: 6px;
+
+  /* Shadow */
+  --shadow: rgba(0, 0, 0, 0.3);
+  --shadow-lg: rgba(0, 0, 0, 0.5);
+
+  /* Type */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-md: 13.5px;
+  --font-size-lg: 15px;
+  --font-size-xl: 18px;
+  --line-height: 1.45;
+
+  /* Spacing and shape */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+  --header-height: 48px;
+  --pane-gap: var(--space-4);
+  --tree-indent: 18px;
+  --stripe-width: 3px;
+  --icon-size: 15px;
+
+  /* Motion */
+  --duration-fast: 0.1s;
+  --duration-normal: 0.15s;
+  --duration-slow: 0.3s;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Light palette: values validated on #f4f5f7 */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+    --bg-base: #f4f5f7;
+    --bg-surface: #ebecf0;
+    --bg-elevated: #ffffff;
+    --bg-overlay: rgba(0, 0, 0, 0.3);
+    --bg-subtle: rgba(0, 0, 0, 0.04);
+    --bg-subtle-hover: rgba(0, 0, 0, 0.08);
+    --border: #dfe1e6;
+    --border-muted: #e4e6ea;
+    --border-hover: #c1c7d0;
+    --text-primary: #091e42;
+    --text-strong: #172b4d;
+    --text-body: #42526e;
+    --text-secondary: #6b778c;
+    --text-muted: #8993a4;
+    --text-faint: #b3bac5;
+    --accent: #5e60ce;
+    --accent-hover: #4f46e5;
+    --accent-light: #818cf8;
+    --accent-glow-1: rgba(94, 96, 206, 0.3);
+    --accent-glow-2: rgba(94, 96, 206, 0.15);
+    --accent-glow-3: rgba(94, 96, 206, 0.08);
+    --success: #15803d;
+    --warning: #b45309;
+    --danger: #dc2626;
+    --info: #2563eb;
+    --success-bg: #dcfce7;
+    --success-text: #14532d;
+    --danger-bg: #fee2e2;
+    --danger-text: #7f1d1d;
+    --warning-bg: #ffedd5;
+    --warning-text: #7c2d12;
+    --info-bg: #dbeafe;
+    --info-text: #1e3a8a;
+    --class-storage: #1570d1;
+    --class-video: #cd5394;
+    --class-audio: #583bab;
+    --class-hid: #00a87a;
+    --class-network: #e46212;
+    --class-display: #dca400;
+    --class-wireless: #317600;
+    --class-printer: #d73246;
+    --class-serial: #815200;
+    --class-imaging: #0092a8;
+    --class-vendor: #8e5b99;
+    --class-hub: #6b7280;
+    --class-composite: #7a8377;
+    --class-unknown: #8a8a8a;
+    --speed-unknown: #b3bac5;
+    --speed-unknown-ink: var(--on-color-dark);
+    --speed-none: #dfe1e6;
+    --speed-none-ink: var(--text-secondary);
+    --speed-low: #6539c2;
+    --speed-low-ink: var(--on-color);
+    --speed-full: #4087ee;
+    --speed-full-ink: var(--on-color-dark);
+    --speed-high: #006e91;
+    --speed-high-ink: var(--on-color);
+    --speed-ss5: #00ab85;
+    --speed-ss5-ink: var(--on-color-dark);
+    --speed-ss10: #2d8014;
+    --speed-ss10-ink: var(--on-color);
+    --speed-ss20: #c9a900;
+    --speed-ss20-ink: var(--on-color-dark);
+    --speed-usb4-20: #d96200;
+    --speed-usb4-20-ink: var(--on-color-dark);
+    --speed-usb4-40: #b3001c;
+    --speed-usb4-40-ink: var(--on-color);
+    --speed-usb4-80: #e5259a;
+    --speed-usb4-80-ink: var(--on-color-dark);
+    --shadow: rgba(0, 0, 0, 0.12);
+    --shadow-lg: rgba(0, 0, 0, 0.2);
+  }
+}
+
+/* Explicit light theme: same values as the media block (kept in sync). */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --bg-base: #f4f5f7;
+  --bg-surface: #ebecf0;
+  --bg-elevated: #ffffff;
+  --bg-overlay: rgba(0, 0, 0, 0.3);
+  --bg-subtle: rgba(0, 0, 0, 0.04);
+  --bg-subtle-hover: rgba(0, 0, 0, 0.08);
+  --border: #dfe1e6;
+  --border-muted: #e4e6ea;
+  --border-hover: #c1c7d0;
+  --text-primary: #091e42;
+  --text-strong: #172b4d;
+  --text-body: #42526e;
+  --text-secondary: #6b778c;
+  --text-muted: #8993a4;
+  --text-faint: #b3bac5;
+  --accent: #5e60ce;
+  --accent-hover: #4f46e5;
+  --accent-light: #818cf8;
+  --accent-glow-1: rgba(94, 96, 206, 0.3);
+  --accent-glow-2: rgba(94, 96, 206, 0.15);
+  --accent-glow-3: rgba(94, 96, 206, 0.08);
+  --success: #15803d;
+  --warning: #b45309;
+  --danger: #dc2626;
+  --info: #2563eb;
+  --success-bg: #dcfce7;
+  --success-text: #14532d;
+  --danger-bg: #fee2e2;
+  --danger-text: #7f1d1d;
+  --warning-bg: #ffedd5;
+  --warning-text: #7c2d12;
+  --info-bg: #dbeafe;
+  --info-text: #1e3a8a;
+  --class-storage: #1570d1;
+  --class-video: #cd5394;
+  --class-audio: #583bab;
+  --class-hid: #00a87a;
+  --class-network: #e46212;
+  --class-display: #dca400;
+  --class-wireless: #317600;
+  --class-printer: #d73246;
+  --class-serial: #815200;
+  --class-imaging: #0092a8;
+  --class-vendor: #8e5b99;
+  --class-hub: #6b7280;
+  --class-composite: #7a8377;
+  --class-unknown: #8a8a8a;
+  --speed-unknown: #b3bac5;
+  --speed-unknown-ink: var(--on-color-dark);
+  --speed-none: #dfe1e6;
+  --speed-none-ink: var(--text-secondary);
+  --speed-low: #6539c2;
+  --speed-low-ink: var(--on-color);
+  --speed-full: #4087ee;
+  --speed-full-ink: var(--on-color-dark);
+  --speed-high: #006e91;
+  --speed-high-ink: var(--on-color);
+  --speed-ss5: #00ab85;
+  --speed-ss5-ink: var(--on-color-dark);
+  --speed-ss10: #2d8014;
+  --speed-ss10-ink: var(--on-color);
+  --speed-ss20: #c9a900;
+  --speed-ss20-ink: var(--on-color-dark);
+  --speed-usb4-20: #d96200;
+  --speed-usb4-20-ink: var(--on-color-dark);
+  --speed-usb4-40: #b3001c;
+  --speed-usb4-40-ink: var(--on-color);
+  --speed-usb4-80: #e5259a;
+  --speed-usb4-80-ink: var(--on-color-dark);
+  --shadow: rgba(0, 0, 0, 0.12);
+  --shadow-lg: rgba(0, 0, 0, 0.2);
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg-base);
+  color: var(--text-body);
+  font-family: var(--font-sans);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height);
+  -webkit-font-smoothing: antialiased;
+}
+
+#app {
+  min-height: 100%;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+h1, h2, h3, p, ul {
+  margin: 0;
+}
+
+ul {
+  padding: 0;
+  list-style: none;
+}
+
+code, .mono {
+  font-family: var(--font-mono);
+}
+
+/* Shared: severity text colours and the flash used by the flash action. */
+.sev-info { color: var(--severity-info); }
+.sev-warning { color: var(--severity-warning); }
+.sev-critical { color: var(--severity-critical); }
+
+@keyframes pa-flash {
+  0% { box-shadow: 0 0 0 0 var(--accent-glow-1); background-color: var(--accent-glow-2); }
+  100% { box-shadow: 0 0 0 10px transparent; background-color: transparent; }
+}
+
+.flash {
+  animation: pa-flash 1.4s var(--ease-out) 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flash { animation: none; }
+  * { scroll-behavior: auto !important; }
+}

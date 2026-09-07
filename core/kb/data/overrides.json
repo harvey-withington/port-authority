@@ -1,0 +1,16 @@
+{
+  "$comment": "Corrections and additions layered over usb.ids. Keys are lower-case hex. Entries here win over usb.ids. Contribute upstream to usb.ids too where possible.",
+  "vendors": {
+    "2188": "CalDigit"
+  },
+  "products": {
+    "2188:5802": "TS4 USB 2.0 Hub",
+    "2188:5500": "TS4 USB 3.2 Gen 2 Hub",
+    "2188:5510": "TS4 USB 2.0 Hub (stage 2)",
+    "2188:5501": "TS4 USB 3.2 Gen 2 Hub (stage 2)",
+    "2188:5511": "TS4 USB 2.0 Hub (stage 3)",
+    "2188:5512": "TS4 USB 2.0 Hub (stage 3)",
+    "2188:5502": "TS4 USB 3.2 Gen 2 Hub (stage 3)",
+    "2188:7112": "TS4 HID control interface"
+  }
+}

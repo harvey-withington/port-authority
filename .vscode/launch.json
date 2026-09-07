@@ -1,0 +1,157 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Desktop app (Go debug)",
+      "type": "go",
+      "request": "launch",
+      "mode": "exec",
+      "program": "${workspaceFolder}/build/bin/port-authority.exe",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "wails: build debug",
+      "console": "internalConsole"
+    },
+    {
+      "name": "pactl tree",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/pactl",
+      "cwd": "${workspaceFolder}",
+      "args": ["tree"],
+      "console": "internalConsole"
+    },
+    {
+      "name": "pactl tree --all",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/pactl",
+      "cwd": "${workspaceFolder}",
+      "args": ["tree", "--all"],
+      "console": "internalConsole"
+    },
+    {
+      "name": "pactl snapshot --pretty",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/pactl",
+      "cwd": "${workspaceFolder}",
+      "args": ["snapshot", "--pretty"],
+      "console": "internalConsole"
+    },
+    {
+      "name": "pactl tree (fixture replay)",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/pactl",
+      "cwd": "${workspaceFolder}",
+      "args": ["tree", "--fixture", "${input:fixture}"],
+      "console": "internalConsole"
+    },
+    {
+      "name": "pactl insights",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/pactl",
+      "cwd": "${workspaceFolder}",
+      "args": ["insights"],
+      "console": "internalConsole"
+    },
+    {
+      "name": "pactl insights (fixture replay)",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/pactl",
+      "cwd": "${workspaceFolder}",
+      "args": ["insights", "--fixture", "${input:fixture}"],
+      "console": "internalConsole"
+    },
+    {
+      "name": "pactl serve",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/pactl",
+      "cwd": "${workspaceFolder}",
+      "args": ["serve", "--addr", "127.0.0.1:7911"],
+      "console": "internalConsole"
+    },
+    {
+      "name": "pactl serve (fixture replay)",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/pactl",
+      "cwd": "${workspaceFolder}",
+      "args": ["serve", "--addr", "127.0.0.1:7911", "--fixture", "${input:fixture}"],
+      "console": "internalConsole"
+    },
+    {
+      "name": "pactl live",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/pactl",
+      "cwd": "${workspaceFolder}",
+      "args": ["live", "--quiet"],
+      "console": "internalConsole"
+    },
+    {
+      "name": "pactl etw-spike",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/pactl",
+      "cwd": "${workspaceFolder}",
+      "args": ["etw-spike", "--seconds", "15"],
+      "console": "internalConsole"
+    },
+    {
+      "name": "pactl caps",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/pactl",
+      "cwd": "${workspaceFolder}",
+      "args": ["caps"],
+      "console": "internalConsole"
+    },
+    {
+      "name": "Test current package",
+      "type": "go",
+      "request": "launch",
+      "mode": "test",
+      "program": "${fileDirname}",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Test insight engine",
+      "type": "go",
+      "request": "launch",
+      "mode": "test",
+      "program": "${workspaceFolder}/core/insight",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Test API server",
+      "type": "go",
+      "request": "launch",
+      "mode": "test",
+      "program": "${workspaceFolder}/core/api",
+      "cwd": "${workspaceFolder}"
+    }
+  ],
+  "inputs": [
+    {
+      "id": "fixture",
+      "type": "promptString",
+      "description": "Fixture to replay",
+      "default": "testdata/fixtures/deviant-caldigit-ts4.json"
+    }
+  ]
+}

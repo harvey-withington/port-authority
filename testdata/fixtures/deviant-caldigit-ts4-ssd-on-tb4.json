@@ -1,0 +1,1114 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-09-07T03:17:17.4747899+07:00",
+  "platform": "windows",
+  "controllers": [
+    {
+      "id": "PCI\\VEN_8086\u0026DEV_51ED\u0026SUBSYS_385617AA\u0026REV_01\\3\u002611583659\u00261\u0026A0",
+      "name": "Intel(R) USB 3.10 eXtensible Host Controller - 1.20 (Microsoft)",
+      "kind": "xhci",
+      "max_bandwidth": 10000000000,
+      "device_path": "\\\\?\\PCI#VEN_8086\u0026DEV_51ED\u0026SUBSYS_385617AA\u0026REV_01#3\u002611583659\u00261\u0026A0#{3abf6f2d-71c4-462a-8a92-1e6861e6af27}",
+      "instance_id": "PCI\\VEN_8086\u0026DEV_51ED\u0026SUBSYS_385617AA\u0026REV_01\\3\u002611583659\u00261\u0026A0",
+      "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0002",
+      "root_hub": {
+        "id": "USB\\ROOT_HUB30\\4\u00262F27429D\u00260\u00260",
+        "port_path": "1",
+        "vendor_id": 0,
+        "product_id": 0,
+        "bcd_device": 0,
+        "bcd_usb": 0,
+        "class": "hub",
+        "usb_class": 9,
+        "usb_subclass": 0,
+        "usb_protocol": 0,
+        "description": "USB Root Hub (USB 3.0)",
+        "instance_id": "USB\\ROOT_HUB30\\4\u00262F27429D\u00260\u00260",
+        "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0003",
+        "claimed_speed": "unknown",
+        "iso_reserved": 0,
+        "power_draw_ma": 0,
+        "hub": {
+          "kind": "root",
+          "depth": 0,
+          "port_count": 16,
+          "bus_powered": false,
+          "device_path": "USB#ROOT_HUB30#4\u00262f27429d\u00260\u00260#{f18a0e88-c30c-11d0-8815-00a0c906bed8}",
+          "ports": [
+            {
+              "number": 1,
+              "status": "connected",
+              "negotiated_link": "high",
+              "max_link": "high",
+              "device": {
+                "id": "USB\\VID_2188\u0026PID_5802\\5\u002613974882\u00260\u00261",
+                "port_path": "1/1",
+                "vendor_id": 8584,
+                "product_id": 22530,
+                "bcd_device": 257,
+                "bcd_usb": 528,
+                "vendor_name": "CalDigit",
+                "product_name": "TS4 USB 2.0 Hub",
+                "class": "hub",
+                "usb_class": 9,
+                "usb_subclass": 0,
+                "usb_protocol": 2,
+                "interfaces": [
+                  {
+                    "number": 0,
+                    "class": 9,
+                    "subclass": 0,
+                    "protocol": 1,
+                    "kind": "hub",
+                    "endpoints": 1
+                  }
+                ],
+                "manufacturer": "CalDigit, Inc.",
+                "product": "TS4 USB2.0 Hub",
+                "description": "Generic USB Hub",
+                "instance_id": "USB\\VID_2188\u0026PID_5802\\5\u002613974882\u00260\u00261",
+                "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0022",
+                "location": "Port_#0001.Hub_#0001",
+                "claimed_speed": "ss5",
+                "iso_reserved": 0,
+                "power_draw_ma": 0,
+                "hub": {
+                  "kind": "usb2",
+                  "depth": 1,
+                  "port_count": 5,
+                  "bus_powered": false,
+                  "device_path": "USB#VID_2188\u0026PID_5802#5\u002613974882\u00260\u00261#{f18a0e88-c30c-11d0-8815-00a0c906bed8}",
+                  "ports": [
+                    {
+                      "number": 1,
+                      "status": "connected",
+                      "negotiated_link": "high",
+                      "max_link": "high",
+                      "device": {
+                        "id": "USB\\VID_2188\u0026PID_5510\\6\u00262735823\u00260\u00261",
+                        "port_path": "1/1/1",
+                        "vendor_id": 8584,
+                        "product_id": 21776,
+                        "bcd_device": 258,
+                        "bcd_usb": 513,
+                        "vendor_name": "CalDigit",
+                        "product_name": "TS4 USB 2.0 Hub (stage 2)",
+                        "class": "hub",
+                        "usb_class": 9,
+                        "usb_subclass": 0,
+                        "usb_protocol": 1,
+                        "interfaces": [
+                          {
+                            "number": 0,
+                            "class": 9,
+                            "subclass": 0,
+                            "protocol": 0,
+                            "kind": "hub",
+                            "endpoints": 1
+                          }
+                        ],
+                        "manufacturer": "CalDigit, Inc",
+                        "product": "TS4 USB2.0 HUB",
+                        "description": "Generic USB Hub",
+                        "instance_id": "USB\\VID_2188\u0026PID_5510\\6\u00262735823\u00260\u00261",
+                        "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0026",
+                        "location": "Port_#0001.Hub_#0003",
+                        "claimed_speed": "ss5",
+                        "iso_reserved": 0,
+                        "power_draw_ma": 0,
+                        "hub": {
+                          "kind": "usb2",
+                          "depth": 2,
+                          "port_count": 5,
+                          "bus_powered": false,
+                          "device_path": "USB#VID_2188\u0026PID_5510#6\u00262735823\u00260\u00261#{f18a0e88-c30c-11d0-8815-00a0c906bed8}",
+                          "ports": [
+                            {
+                              "number": 1,
+                              "status": "connected",
+                              "negotiated_link": "high",
+                              "max_link": "high",
+                              "device": {
+                                "id": "USB\\VID_2188\u0026PID_5511\\7\u002618A2F1D2\u00260\u00261",
+                                "port_path": "1/1/1/1",
+                                "vendor_id": 8584,
+                                "product_id": 21777,
+                                "bcd_device": 258,
+                                "bcd_usb": 513,
+                                "vendor_name": "CalDigit",
+                                "product_name": "TS4 USB 2.0 Hub (stage 3)",
+                                "class": "hub",
+                                "usb_class": 9,
+                                "usb_subclass": 0,
+                                "usb_protocol": 1,
+                                "interfaces": [
+                                  {
+                                    "number": 0,
+                                    "class": 9,
+                                    "subclass": 0,
+                                    "protocol": 0,
+                                    "kind": "hub",
+                                    "endpoints": 1
+                                  }
+                                ],
+                                "manufacturer": "CalDigit, Inc",
+                                "product": "TS4 USB2.0 HUB",
+                                "description": "Generic USB Hub",
+                                "instance_id": "USB\\VID_2188\u0026PID_5511\\7\u002618A2F1D2\u00260\u00261",
+                                "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0030",
+                                "location": "Port_#0001.Hub_#0005",
+                                "claimed_speed": "ss5",
+                                "iso_reserved": 0,
+                                "power_draw_ma": 0,
+                                "hub": {
+                                  "kind": "usb2",
+                                  "depth": 3,
+                                  "port_count": 4,
+                                  "bus_powered": false,
+                                  "device_path": "USB#VID_2188\u0026PID_5511#7\u002618a2f1d2\u00260\u00261#{f18a0e88-c30c-11d0-8815-00a0c906bed8}",
+                                  "ports": [
+                                    {
+                                      "number": 1,
+                                      "status": "connected",
+                                      "negotiated_link": "full",
+                                      "max_link": "high",
+                                      "device": {
+                                        "id": "USB\\VID_1C75\u0026PID_024C\\SCRUBBED-02",
+                                        "port_path": "1/1/1/1/1",
+                                        "vendor_id": 7285,
+                                        "product_id": 588,
+                                        "bcd_device": 4609,
+                                        "bcd_usb": 512,
+                                        "vendor_name": "Arturia",
+                                        "class": "audio",
+                                        "usb_class": 0,
+                                        "usb_subclass": 0,
+                                        "usb_protocol": 0,
+                                        "interfaces": [
+                                          {
+                                            "number": 0,
+                                            "class": 254,
+                                            "subclass": 1,
+                                            "protocol": 2,
+                                            "kind": "unknown",
+                                            "endpoints": 0
+                                          },
+                                          {
+                                            "number": 1,
+                                            "class": 1,
+                                            "subclass": 1,
+                                            "protocol": 0,
+                                            "kind": "audio",
+                                            "endpoints": 0
+                                          },
+                                          {
+                                            "number": 2,
+                                            "class": 1,
+                                            "subclass": 3,
+                                            "protocol": 0,
+                                            "kind": "audio",
+                                            "endpoints": 2
+                                          }
+                                        ],
+                                        "manufacturer": "Arturia",
+                                        "product": "KL Essential 49 mk3",
+                                        "serial_number": "SCRUBBED-02",
+                                        "description": "KL Essential 49 mk3",
+                                        "instance_id": "USB\\VID_1C75\u0026PID_024C\\SCRUBBED-02",
+                                        "driver_key": "{463bf520-cdd6-42c5-8602-d96558779b60}\\0000",
+                                        "location": "Port_#0001.Hub_#0007",
+                                        "claimed_speed": "full",
+                                        "iso_reserved": 0,
+                                        "power_draw_ma": 500
+                                      }
+                                    },
+                                    {
+                                      "number": 2,
+                                      "status": "none",
+                                      "negotiated_link": "none",
+                                      "max_link": "high"
+                                    },
+                                    {
+                                      "number": 3,
+                                      "status": "connected",
+                                      "negotiated_link": "full",
+                                      "max_link": "high",
+                                      "device": {
+                                        "id": "USB\\VID_08BB\u0026PID_2704\\8\u0026236AC398\u00260\u00263",
+                                        "port_path": "1/1/1/1/3",
+                                        "vendor_id": 2235,
+                                        "product_id": 9988,
+                                        "bcd_device": 256,
+                                        "bcd_usb": 272,
+                                        "vendor_name": "Texas Instruments",
+                                        "product_name": "PCM2704 16-bit stereo audio DAC",
+                                        "class": "audio",
+                                        "usb_class": 0,
+                                        "usb_subclass": 0,
+                                        "usb_protocol": 0,
+                                        "interfaces": [
+                                          {
+                                            "number": 0,
+                                            "class": 1,
+                                            "subclass": 1,
+                                            "protocol": 0,
+                                            "kind": "audio",
+                                            "endpoints": 0
+                                          },
+                                          {
+                                            "number": 1,
+                                            "class": 1,
+                                            "subclass": 2,
+                                            "protocol": 0,
+                                            "kind": "audio",
+                                            "endpoints": 0
+                                          },
+                                          {
+                                            "number": 2,
+                                            "class": 3,
+                                            "subclass": 0,
+                                            "protocol": 0,
+                                            "kind": "hid",
+                                            "endpoints": 1
+                                          }
+                                        ],
+                                        "manufacturer": "Vendor strings are placed here.",
+                                        "product": "ADAM Audio D3V",
+                                        "description": "USB Composite Device",
+                                        "instance_id": "USB\\VID_08BB\u0026PID_2704\\8\u0026236AC398\u00260\u00263",
+                                        "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0011",
+                                        "location": "Port_#0003.Hub_#0007",
+                                        "claimed_speed": "full",
+                                        "iso_reserved": 0,
+                                        "power_draw_ma": 250
+                                      }
+                                    },
+                                    {
+                                      "number": 4,
+                                      "status": "none",
+                                      "negotiated_link": "none",
+                                      "max_link": "high"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "number": 2,
+                              "status": "connected",
+                              "negotiated_link": "high",
+                              "max_link": "high",
+                              "device": {
+                                "id": "USB\\VID_2188\u0026PID_5512\\7\u002618A2F1D2\u00260\u00262",
+                                "port_path": "1/1/1/2",
+                                "vendor_id": 8584,
+                                "product_id": 21778,
+                                "bcd_device": 258,
+                                "bcd_usb": 513,
+                                "vendor_name": "CalDigit",
+                                "product_name": "TS4 USB 2.0 Hub (stage 3)",
+                                "class": "hub",
+                                "usb_class": 9,
+                                "usb_subclass": 0,
+                                "usb_protocol": 1,
+                                "interfaces": [
+                                  {
+                                    "number": 0,
+                                    "class": 9,
+                                    "subclass": 0,
+                                    "protocol": 0,
+                                    "kind": "hub",
+                                    "endpoints": 1
+                                  }
+                                ],
+                                "description": "Generic USB Hub",
+                                "instance_id": "USB\\VID_2188\u0026PID_5512\\7\u002618A2F1D2\u00260\u00262",
+                                "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0031",
+                                "location": "Port_#0002.Hub_#0005",
+                                "claimed_speed": "ss5",
+                                "iso_reserved": 0,
+                                "power_draw_ma": 0,
+                                "hub": {
+                                  "kind": "usb2",
+                                  "depth": 3,
+                                  "port_count": 5,
+                                  "bus_powered": false,
+                                  "device_path": "USB#VID_2188\u0026PID_5512#7\u002618a2f1d2\u00260\u00262#{f18a0e88-c30c-11d0-8815-00a0c906bed8}",
+                                  "ports": [
+                                    {
+                                      "number": 1,
+                                      "status": "none",
+                                      "negotiated_link": "none",
+                                      "max_link": "high"
+                                    },
+                                    {
+                                      "number": 2,
+                                      "status": "none",
+                                      "negotiated_link": "none",
+                                      "max_link": "high"
+                                    },
+                                    {
+                                      "number": 3,
+                                      "status": "none",
+                                      "negotiated_link": "none",
+                                      "max_link": "high"
+                                    },
+                                    {
+                                      "number": 4,
+                                      "status": "none",
+                                      "negotiated_link": "none",
+                                      "max_link": "high"
+                                    },
+                                    {
+                                      "number": 5,
+                                      "status": "none",
+                                      "negotiated_link": "none",
+                                      "max_link": "high"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "number": 3,
+                              "status": "none",
+                              "negotiated_link": "none",
+                              "max_link": "high"
+                            },
+                            {
+                              "number": 4,
+                              "status": "none",
+                              "negotiated_link": "none",
+                              "max_link": "high"
+                            },
+                            {
+                              "number": 5,
+                              "status": "connected",
+                              "negotiated_link": "full",
+                              "max_link": "high",
+                              "device": {
+                                "id": "USB\\VID_2188\u0026PID_7112\\7\u002618A2F1D2\u00260\u00265",
+                                "port_path": "1/1/1/5",
+                                "vendor_id": 8584,
+                                "product_id": 28946,
+                                "bcd_device": 256,
+                                "bcd_usb": 512,
+                                "vendor_name": "CalDigit",
+                                "product_name": "TS4 HID control interface",
+                                "class": "hid",
+                                "usb_class": 0,
+                                "usb_subclass": 0,
+                                "usb_protocol": 0,
+                                "interfaces": [
+                                  {
+                                    "number": 0,
+                                    "class": 3,
+                                    "subclass": 0,
+                                    "protocol": 0,
+                                    "kind": "hid",
+                                    "endpoints": 1
+                                  }
+                                ],
+                                "description": "USB Input Device",
+                                "instance_id": "USB\\VID_2188\u0026PID_7112\\7\u002618A2F1D2\u00260\u00265",
+                                "driver_key": "{745a17a0-74d3-11d0-b6fe-00a0c90f57da}\\0044",
+                                "location": "Port_#0005.Hub_#0005",
+                                "claimed_speed": "full",
+                                "iso_reserved": 0,
+                                "power_draw_ma": 0
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "number": 2,
+                      "status": "none",
+                      "negotiated_link": "none",
+                      "max_link": "high"
+                    },
+                    {
+                      "number": 3,
+                      "status": "connected",
+                      "negotiated_link": "low",
+                      "max_link": "high",
+                      "device": {
+                        "id": "USB\\VID_0451\u0026PID_ACE1\\SCRUBBED-03",
+                        "port_path": "1/1/3",
+                        "vendor_id": 1105,
+                        "product_id": 44257,
+                        "bcd_device": 336,
+                        "bcd_usb": 512,
+                        "vendor_name": "Texas Instruments, Inc.",
+                        "class": "vendor",
+                        "usb_class": 255,
+                        "usb_subclass": 0,
+                        "usb_protocol": 0,
+                        "interfaces": [
+                          {
+                            "number": 0,
+                            "class": 255,
+                            "subclass": 0,
+                            "protocol": 0,
+                            "kind": "vendor",
+                            "endpoints": 0
+                          }
+                        ],
+                        "manufacturer": "Texas Instruments Inc",
+                        "product": "TPS DMC Family",
+                        "serial_number": "SCRUBBED-03",
+                        "description": "WinUsb Device",
+                        "friendly_name": "TPS DMC Family",
+                        "instance_id": "USB\\VID_0451\u0026PID_ACE1\\SCRUBBED-03",
+                        "driver_key": "{88bae032-5a81-49f0-bc3d-a4ff138216d6}\\0001",
+                        "location": "Port_#0003.Hub_#0003",
+                        "claimed_speed": "low",
+                        "iso_reserved": 0,
+                        "power_draw_ma": 500
+                      }
+                    },
+                    {
+                      "number": 4,
+                      "status": "none",
+                      "negotiated_link": "none",
+                      "max_link": "high"
+                    },
+                    {
+                      "number": 5,
+                      "status": "connected",
+                      "negotiated_link": "high",
+                      "max_link": "high",
+                      "device": {
+                        "id": "USB\\VID_0FD9\u0026PID_009A\\SCRUBBED-05",
+                        "port_path": "1/1/5",
+                        "vendor_id": 4057,
+                        "product_id": 154,
+                        "bcd_device": 288,
+                        "bcd_usb": 512,
+                        "vendor_name": "Elgato Systems GmbH",
+                        "class": "hid",
+                        "usb_class": 0,
+                        "usb_subclass": 0,
+                        "usb_protocol": 0,
+                        "interfaces": [
+                          {
+                            "number": 0,
+                            "class": 3,
+                            "subclass": 0,
+                            "protocol": 0,
+                            "kind": "hid",
+                            "endpoints": 2
+                          }
+                        ],
+                        "manufacturer": "Elgato",
+                        "product": "Stream Deck Neo",
+                        "serial_number": "SCRUBBED-05",
+                        "description": "USB Input Device",
+                        "instance_id": "USB\\VID_0FD9\u0026PID_009A\\SCRUBBED-05",
+                        "driver_key": "{745a17a0-74d3-11d0-b6fe-00a0c90f57da}\\0040",
+                        "location": "Port_#0005.Hub_#0003",
+                        "claimed_speed": "high",
+                        "iso_reserved": 0,
+                        "power_draw_ma": 500
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "number": 2,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high"
+            },
+            {
+              "number": 3,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high"
+            },
+            {
+              "number": 4,
+              "status": "connected",
+              "negotiated_link": "high",
+              "max_link": "high",
+              "device": {
+                "id": "USB\\VID_04F2\u0026PID_B7C1\\SCRUBBED-01",
+                "port_path": "1/4",
+                "vendor_id": 1266,
+                "product_id": 47041,
+                "bcd_device": 5384,
+                "bcd_usb": 513,
+                "vendor_name": "Chicony Electronics Co., Ltd",
+                "class": "video",
+                "usb_class": 239,
+                "usb_subclass": 2,
+                "usb_protocol": 1,
+                "interfaces": [
+                  {
+                    "number": 0,
+                    "class": 14,
+                    "subclass": 1,
+                    "protocol": 1,
+                    "kind": "video",
+                    "endpoints": 1
+                  },
+                  {
+                    "number": 1,
+                    "class": 14,
+                    "subclass": 2,
+                    "protocol": 1,
+                    "kind": "video",
+                    "endpoints": 0
+                  },
+                  {
+                    "number": 2,
+                    "class": 14,
+                    "subclass": 1,
+                    "protocol": 1,
+                    "kind": "video",
+                    "endpoints": 1
+                  },
+                  {
+                    "number": 3,
+                    "class": 14,
+                    "subclass": 2,
+                    "protocol": 1,
+                    "kind": "video",
+                    "endpoints": 0
+                  },
+                  {
+                    "number": 4,
+                    "class": 254,
+                    "subclass": 1,
+                    "protocol": 1,
+                    "kind": "unknown",
+                    "endpoints": 0
+                  }
+                ],
+                "serial_number": "SCRUBBED-01",
+                "description": "USB Composite Device",
+                "instance_id": "USB\\VID_04F2\u0026PID_B7C1\\SCRUBBED-01",
+                "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0009",
+                "location": "Port_#0004.Hub_#0001",
+                "claimed_speed": "high",
+                "iso_reserved": 0,
+                "power_draw_ma": 500
+              }
+            },
+            {
+              "number": 5,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high"
+            },
+            {
+              "number": 6,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high"
+            },
+            {
+              "number": 7,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high"
+            },
+            {
+              "number": 8,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high"
+            },
+            {
+              "number": 9,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high"
+            },
+            {
+              "number": 10,
+              "status": "connected",
+              "negotiated_link": "full",
+              "max_link": "high",
+              "device": {
+                "id": "USB\\VID_8087\u0026PID_0033\\5\u002613974882\u00260\u002610",
+                "port_path": "1/10",
+                "vendor_id": 32903,
+                "product_id": 51,
+                "bcd_device": 0,
+                "bcd_usb": 513,
+                "vendor_name": "Intel Corp.",
+                "product_name": "AX211 Bluetooth",
+                "class": "wireless",
+                "usb_class": 224,
+                "usb_subclass": 1,
+                "usb_protocol": 1,
+                "interfaces": [
+                  {
+                    "number": 0,
+                    "class": 224,
+                    "subclass": 1,
+                    "protocol": 1,
+                    "kind": "wireless",
+                    "endpoints": 3
+                  },
+                  {
+                    "number": 1,
+                    "class": 224,
+                    "subclass": 1,
+                    "protocol": 1,
+                    "kind": "wireless",
+                    "endpoints": 2
+                  }
+                ],
+                "description": "Intel(R) Wireless Bluetooth(R)",
+                "instance_id": "USB\\VID_8087\u0026PID_0033\\5\u002613974882\u00260\u002610",
+                "driver_key": "{e0cbf06c-cd8b-4647-bb8a-263b43f0f974}\\0000",
+                "location": "Port_#0010.Hub_#0001",
+                "claimed_speed": "full",
+                "iso_reserved": 0,
+                "power_draw_ma": 100
+              }
+            },
+            {
+              "number": 11,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high"
+            },
+            {
+              "number": 12,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high"
+            },
+            {
+              "number": 13,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "ss5"
+            },
+            {
+              "number": 14,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "ss5"
+            },
+            {
+              "number": 15,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "ss5"
+            },
+            {
+              "number": 16,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "ss5"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "PCI\\VEN_8086\u0026DEV_A71E\u0026SUBSYS_380C17AA\u0026REV_00\\3\u002611583659\u00261\u002668",
+      "name": "Intel(R) USB 3.20 eXtensible Host Controller - 1.20 (Microsoft)",
+      "kind": "xhci",
+      "max_bandwidth": 10000000000,
+      "device_path": "\\\\?\\PCI#VEN_8086\u0026DEV_A71E\u0026SUBSYS_380C17AA\u0026REV_00#3\u002611583659\u00261\u002668#{3abf6f2d-71c4-462a-8a92-1e6861e6af27}",
+      "instance_id": "PCI\\VEN_8086\u0026DEV_A71E\u0026SUBSYS_380C17AA\u0026REV_00\\3\u002611583659\u00261\u002668",
+      "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0000",
+      "root_hub": {
+        "id": "USB\\ROOT_HUB30\\4\u00263387EA0F\u00260\u00260",
+        "port_path": "2",
+        "vendor_id": 0,
+        "product_id": 0,
+        "bcd_device": 0,
+        "bcd_usb": 0,
+        "class": "hub",
+        "usb_class": 9,
+        "usb_subclass": 0,
+        "usb_protocol": 0,
+        "description": "USB Root Hub (USB 3.0)",
+        "instance_id": "USB\\ROOT_HUB30\\4\u00263387EA0F\u00260\u00260",
+        "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0004",
+        "claimed_speed": "unknown",
+        "iso_reserved": 0,
+        "power_draw_ma": 0,
+        "hub": {
+          "kind": "root",
+          "depth": 0,
+          "port_count": 4,
+          "bus_powered": false,
+          "device_path": "USB#ROOT_HUB30#4\u00263387ea0f\u00260\u00260#{f18a0e88-c30c-11d0-8815-00a0c906bed8}",
+          "ports": [
+            {
+              "number": 1,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high"
+            },
+            {
+              "number": 2,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "ss5"
+            },
+            {
+              "number": 3,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "ss5"
+            },
+            {
+              "number": 4,
+              "status": "connected",
+              "negotiated_link": "ss10",
+              "max_link": "ss10",
+              "device": {
+                "id": "USB\\VID_8087\u0026PID_0B40\\5\u0026270C603\u00260\u00264",
+                "port_path": "2/4",
+                "vendor_id": 32903,
+                "product_id": 2880,
+                "bcd_device": 4660,
+                "bcd_usb": 800,
+                "vendor_name": "Intel Corp.",
+                "class": "hub",
+                "usb_class": 9,
+                "usb_subclass": 0,
+                "usb_protocol": 3,
+                "interfaces": [
+                  {
+                    "number": 0,
+                    "class": 9,
+                    "subclass": 0,
+                    "protocol": 0,
+                    "kind": "hub",
+                    "endpoints": 1
+                  }
+                ],
+                "manufacturer": "Intel Corporation.",
+                "product": "USB3.0 Hub",
+                "description": "Generic SuperSpeed USB Hub",
+                "instance_id": "USB\\VID_8087\u0026PID_0B40\\5\u0026270C603\u00260\u00264",
+                "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0020",
+                "location": "Port_#0004.Hub_#0002",
+                "claimed_speed": "ss10",
+                "iso_reserved": 0,
+                "power_draw_ma": 0,
+                "hub": {
+                  "kind": "usb3",
+                  "depth": 1,
+                  "port_count": 4,
+                  "bus_powered": false,
+                  "device_path": "USB#VID_8087\u0026PID_0B40#5\u0026270c603\u00260\u00264#{f18a0e88-c30c-11d0-8815-00a0c906bed8}",
+                  "ports": [
+                    {
+                      "number": 1,
+                      "status": "none",
+                      "negotiated_link": "none",
+                      "max_link": "ss5"
+                    },
+                    {
+                      "number": 2,
+                      "status": "none",
+                      "negotiated_link": "none",
+                      "max_link": "ss5"
+                    },
+                    {
+                      "number": 3,
+                      "status": "none",
+                      "negotiated_link": "none",
+                      "max_link": "ss5"
+                    },
+                    {
+                      "number": 4,
+                      "status": "connected",
+                      "negotiated_link": "ss10",
+                      "max_link": "ss10",
+                      "device": {
+                        "id": "USB\\VID_2188\u0026PID_5500\\6\u00261CA4DC2F\u00261\u00264",
+                        "port_path": "2/4/4",
+                        "vendor_id": 8584,
+                        "product_id": 21760,
+                        "bcd_device": 258,
+                        "bcd_usb": 800,
+                        "vendor_name": "CalDigit",
+                        "product_name": "TS4 USB 3.2 Gen 2 Hub",
+                        "class": "hub",
+                        "usb_class": 9,
+                        "usb_subclass": 0,
+                        "usb_protocol": 3,
+                        "interfaces": [
+                          {
+                            "number": 0,
+                            "class": 9,
+                            "subclass": 0,
+                            "protocol": 0,
+                            "kind": "hub",
+                            "endpoints": 1
+                          }
+                        ],
+                        "manufacturer": "CalDigit, Inc",
+                        "product": "TS4 USB3.2 Gen2 HUB",
+                        "description": "Generic SuperSpeed USB Hub",
+                        "instance_id": "USB\\VID_2188\u0026PID_5500\\6\u00261CA4DC2F\u00261\u00264",
+                        "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0025",
+                        "location": "Port_#0004.Hub_#0004",
+                        "claimed_speed": "ss10",
+                        "iso_reserved": 0,
+                        "power_draw_ma": 0,
+                        "hub": {
+                          "kind": "usb3",
+                          "depth": 2,
+                          "port_count": 4,
+                          "bus_powered": false,
+                          "device_path": "USB#VID_2188\u0026PID_5500#6\u00261ca4dc2f\u00261\u00264#{f18a0e88-c30c-11d0-8815-00a0c906bed8}",
+                          "ports": [
+                            {
+                              "number": 1,
+                              "status": "connected",
+                              "negotiated_link": "ss10",
+                              "max_link": "ss10",
+                              "device": {
+                                "id": "USB\\VID_2188\u0026PID_5501\\7\u00265E4EEE8\u00260\u00261",
+                                "port_path": "2/4/4/1",
+                                "vendor_id": 8584,
+                                "product_id": 21761,
+                                "bcd_device": 258,
+                                "bcd_usb": 800,
+                                "vendor_name": "CalDigit",
+                                "product_name": "TS4 USB 3.2 Gen 2 Hub (stage 2)",
+                                "class": "hub",
+                                "usb_class": 9,
+                                "usb_subclass": 0,
+                                "usb_protocol": 3,
+                                "interfaces": [
+                                  {
+                                    "number": 0,
+                                    "class": 9,
+                                    "subclass": 0,
+                                    "protocol": 0,
+                                    "kind": "hub",
+                                    "endpoints": 1
+                                  }
+                                ],
+                                "manufacturer": "CalDigit, Inc",
+                                "product": "TS4 USB3.2 Gen2 HUB",
+                                "description": "Generic SuperSpeed USB Hub",
+                                "instance_id": "USB\\VID_2188\u0026PID_5501\\7\u00265E4EEE8\u00260\u00261",
+                                "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0028",
+                                "location": "Port_#0001.Hub_#0006",
+                                "claimed_speed": "ss10",
+                                "iso_reserved": 0,
+                                "power_draw_ma": 0,
+                                "hub": {
+                                  "kind": "usb3",
+                                  "depth": 3,
+                                  "port_count": 4,
+                                  "bus_powered": false,
+                                  "device_path": "USB#VID_2188\u0026PID_5501#7\u00265e4eee8\u00260\u00261#{f18a0e88-c30c-11d0-8815-00a0c906bed8}",
+                                  "ports": [
+                                    {
+                                      "number": 1,
+                                      "status": "none",
+                                      "negotiated_link": "none",
+                                      "max_link": "ss5"
+                                    },
+                                    {
+                                      "number": 2,
+                                      "status": "connected",
+                                      "negotiated_link": "ss5",
+                                      "max_link": "ss5",
+                                      "device": {
+                                        "id": "USB\\VID_17E9\u0026PID_FF1A\\SCRUBBED-04",
+                                        "port_path": "2/4/4/1/2",
+                                        "vendor_id": 6121,
+                                        "product_id": 65306,
+                                        "bcd_device": 12327,
+                                        "bcd_usb": 800,
+                                        "vendor_name": "DisplayLink",
+                                        "class": "vendor",
+                                        "usb_class": 239,
+                                        "usb_subclass": 2,
+                                        "usb_protocol": 1,
+                                        "interfaces": [
+                                          {
+                                            "number": 0,
+                                            "class": 255,
+                                            "subclass": 0,
+                                            "protocol": 3,
+                                            "kind": "vendor",
+                                            "endpoints": 2
+                                          },
+                                          {
+                                            "number": 1,
+                                            "class": 254,
+                                            "subclass": 1,
+                                            "protocol": 1,
+                                            "kind": "unknown",
+                                            "endpoints": 0
+                                          }
+                                        ],
+                                        "manufacturer": "DisplayLink",
+                                        "product": "Elgato Prompter",
+                                        "serial_number": "SCRUBBED-04",
+                                        "description": "USB Composite Device",
+                                        "instance_id": "USB\\VID_17E9\u0026PID_FF1A\\SCRUBBED-04",
+                                        "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0006",
+                                        "location": "Port_#0002.Hub_#0008",
+                                        "claimed_speed": "ss5",
+                                        "iso_reserved": 0,
+                                        "power_draw_ma": 504
+                                      }
+                                    },
+                                    {
+                                      "number": 3,
+                                      "status": "none",
+                                      "negotiated_link": "none",
+                                      "max_link": "ss5"
+                                    },
+                                    {
+                                      "number": 4,
+                                      "status": "none",
+                                      "negotiated_link": "none",
+                                      "max_link": "ss5"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "number": 2,
+                              "status": "connected",
+                              "negotiated_link": "ss10",
+                              "max_link": "ss10",
+                              "device": {
+                                "id": "USB\\VID_2188\u0026PID_5502\\7\u00265E4EEE8\u00260\u00262",
+                                "port_path": "2/4/4/2",
+                                "vendor_id": 8584,
+                                "product_id": 21762,
+                                "bcd_device": 258,
+                                "bcd_usb": 800,
+                                "vendor_name": "CalDigit",
+                                "product_name": "TS4 USB 3.2 Gen 2 Hub (stage 3)",
+                                "class": "hub",
+                                "usb_class": 9,
+                                "usb_subclass": 0,
+                                "usb_protocol": 3,
+                                "interfaces": [
+                                  {
+                                    "number": 0,
+                                    "class": 9,
+                                    "subclass": 0,
+                                    "protocol": 0,
+                                    "kind": "hub",
+                                    "endpoints": 1
+                                  }
+                                ],
+                                "description": "Generic SuperSpeed USB Hub",
+                                "instance_id": "USB\\VID_2188\u0026PID_5502\\7\u00265E4EEE8\u00260\u00262",
+                                "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0029",
+                                "location": "Port_#0002.Hub_#0006",
+                                "claimed_speed": "ss10",
+                                "iso_reserved": 0,
+                                "power_draw_ma": 0,
+                                "hub": {
+                                  "kind": "usb3",
+                                  "depth": 3,
+                                  "port_count": 4,
+                                  "bus_powered": false,
+                                  "device_path": "USB#VID_2188\u0026PID_5502#7\u00265e4eee8\u00260\u00262#{f18a0e88-c30c-11d0-8815-00a0c906bed8}",
+                                  "ports": [
+                                    {
+                                      "number": 1,
+                                      "status": "none",
+                                      "negotiated_link": "none",
+                                      "max_link": "ss5"
+                                    },
+                                    {
+                                      "number": 2,
+                                      "status": "none",
+                                      "negotiated_link": "none",
+                                      "max_link": "ss5"
+                                    },
+                                    {
+                                      "number": 3,
+                                      "status": "none",
+                                      "negotiated_link": "none",
+                                      "max_link": "ss5"
+                                    },
+                                    {
+                                      "number": 4,
+                                      "status": "none",
+                                      "negotiated_link": "none",
+                                      "max_link": "ss5"
+                                    }
+                                  ]
+                                }
+                              }
+                            },
+                            {
+                              "number": 3,
+                              "status": "none",
+                              "negotiated_link": "none",
+                              "max_link": "ss5"
+                            },
+                            {
+                              "number": 4,
+                              "status": "none",
+                              "negotiated_link": "none",
+                              "max_link": "ss5"
+                            }
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "usb4": [
+    {
+      "id": "USB4\\ROOT_DEVICE_ROUTER\u0026VID_8086\u0026PID_A76D\\4\u00262A85E3A3\u00260\u00260",
+      "instance_id": "USB4\\ROOT_DEVICE_ROUTER\u0026VID_8086\u0026PID_A76D\\4\u00262A85E3A3\u00260\u00260",
+      "name": "USB4 Root Router (1.0)",
+      "vendor_id": 32902,
+      "product_id": 42861,
+      "kind": "host",
+      "parent_id": "PCI\\VEN_8086\u0026DEV_A76D\u0026SUBSYS_380B17AA\u0026REV_00\u0026USB4_MS_CM\\3\u002611583659\u00261\u00266B",
+      "depth": 0
+    },
+    {
+      "id": "USB4\\VID_8087\u0026PID_0B26\\5\u002635CB8FD0\u00260\u00261",
+      "instance_id": "USB4\\VID_8087\u0026PID_0B26\\5\u002635CB8FD0\u00260\u00261",
+      "name": "USB4 Router (1.0), CalDigit. Inc. - TS4",
+      "vendor_id": 32903,
+      "product_id": 2854,
+      "kind": "device",
+      "parent_id": "USB4\\ROOT_DEVICE_ROUTER\u0026VID_8086\u0026PID_A76D\\4\u00262A85E3A3\u00260\u00260",
+      "depth": 1
+    },
+    {
+      "id": "USB4\\VID_13FE\u0026PID_6900\\6\u00263827369F\u00260\u00267",
+      "instance_id": "USB4\\VID_13FE\u0026PID_6900\\6\u00263827369F\u00260\u00267",
+      "name": "USB4 Router (2.0), Corsair - EX400U",
+      "vendor_id": 5118,
+      "product_id": 26880,
+      "kind": "device",
+      "parent_id": "USB4\\VID_8087\u0026PID_0B26\\5\u002635CB8FD0\u00260\u00261",
+      "depth": 2,
+      "children": [
+        "Corsair EX400U (SCSI\\DISK\u0026VEN_NVME\u0026PROD_CORSAIR_EX400U\\7\u00261B27237F\u00260\u0026000000)"
+      ]
+    }
+  ]
+}
