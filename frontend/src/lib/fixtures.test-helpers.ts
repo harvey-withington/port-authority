@@ -1,5 +1,5 @@
 // Builders for test topologies. Not a test file itself.
-import type { Controller, Device, Hub, Insight, Port, Topology } from './api/types'
+import type { Connector, Controller, Device, Hub, Insight, Port, Topology } from './api/types'
 
 export function device(overrides: Partial<Device> & { id: string }): Device {
   return {
@@ -48,7 +48,15 @@ export function insight(overrides: Partial<Insight> = {}): Insight {
   }
 }
 
-/** Controller -> root hub -> [hub(port 1) -> ssd(port 3)], mouse(port 2). */
+/** A user-facing socket descriptor; `internal` ports are not user connectable. */
+export function connector(type_c: boolean, overrides: Partial<Connector> = {}): Connector {
+  return { type_c, user_connectable: true, multiple_companions: false, ...overrides }
+}
+
+/**
+ * Controller -> root hub -> [hub(port 1) -> ssd(port 3)], mouse(port 2),
+ * plus an empty USB-A socket on root port 3 so an unused socket is drawn.
+ */
 export function sampleTopology(): Topology {
   const ssd = device({
     id: 'USB\\VID_1B1C&PID_1A20\\SSD', port_path: '1/1/3', class: 'storage', vendor_name: 'Corsair', product_name: 'EX400U', claimed_speed: 'usb4_40',
@@ -60,7 +68,11 @@ export function sampleTopology(): Topology {
   const mouse = device({ id: 'USB\\VID_046D&PID_C52B\\MOUSE', port_path: '1/2', class: 'hid', description: 'USB Input Device', claimed_speed: 'full' })
   const root = device({
     id: 'USB\\ROOT_HUB30\\ROOT', port_path: '1', class: 'hub', description: 'USB Root Hub (USB 3.0)',
-    hub: hub([port(1, dockHub), port(2, mouse, { negotiated_link: 'full', max_link: 'high' })], { kind: 'root', depth: 0, port_count: 4 }),
+    hub: hub([
+      port(1, dockHub, { connector: connector(true) }),
+      port(2, mouse, { negotiated_link: 'full', max_link: 'high', connector: connector(false) }),
+      port(3, undefined, { connector: connector(false), label: 'USB-A Data', position: 'rear' }),
+    ], { kind: 'root', depth: 0, port_count: 4, device_path: 'USB#ROOT_HUB30#4&TEST&0&0#{f18a0e88-c30c-11d0-8815-00a0c906bed8}' }),
   })
   return topology([controller(root)])
 }

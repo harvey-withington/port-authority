@@ -1,0 +1,375 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-09-07T20:56:19.1666641+07:00",
+  "platform": "windows",
+  "controllers": [
+    {
+      "id": "PCI\\VEN_8086\u0026DEV_E431\u0026SUBSYS_380A17AA\u0026REV_01\\3\u002611583659\u00260\u002668",
+      "name": "Intel(R) USB 3.20 eXtensible Host Controller - 1.20 (Microsoft)",
+      "kind": "xhci",
+      "max_bandwidth": 10000000000,
+      "device_path": "\\\\?\\PCI#VEN_8086\u0026DEV_E431\u0026SUBSYS_380A17AA\u0026REV_01#3\u002611583659\u00260\u002668#{3abf6f2d-71c4-462a-8a92-1e6861e6af27}",
+      "instance_id": "PCI\\VEN_8086\u0026DEV_E431\u0026SUBSYS_380A17AA\u0026REV_01\\3\u002611583659\u00260\u002668",
+      "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0000",
+      "root_hub": {
+        "id": "USB\\ROOT_HUB30\\4\u002634C97EA0\u00260\u00260",
+        "port_path": "1",
+        "vendor_id": 0,
+        "product_id": 0,
+        "bcd_device": 0,
+        "bcd_usb": 0,
+        "class": "hub",
+        "usb_class": 9,
+        "usb_subclass": 0,
+        "usb_protocol": 0,
+        "description": "USB Root Hub (USB 3.0)",
+        "instance_id": "USB\\ROOT_HUB30\\4\u002634C97EA0\u00260\u00260",
+        "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0004",
+        "claimed_speed": "unknown",
+        "iso_reserved": 0,
+        "power_draw_ma": 0,
+        "hub": {
+          "kind": "root",
+          "depth": 0,
+          "port_count": 5,
+          "bus_powered": false,
+          "device_path": "USB#ROOT_HUB30#4\u002634c97ea0\u00260\u00260#{f18a0e88-c30c-11d0-8815-00a0c906bed8}",
+          "ports": [
+            {
+              "number": 1,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high",
+              "connector": {
+                "type_c": false,
+                "user_connectable": false,
+                "multiple_companions": false
+              }
+            },
+            {
+              "number": 2,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "ss5",
+              "connector": {
+                "type_c": true,
+                "user_connectable": true,
+                "multiple_companions": true,
+                "companion_hub_path": "USB#ROOT_HUB30#4\u00265e9e03d\u00260\u00260#{f18a0e88-c30c-11d0-8815-00a0c906bed8}",
+                "companion_port": 3
+              }
+            },
+            {
+              "number": 3,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "ss5",
+              "connector": {
+                "type_c": true,
+                "user_connectable": true,
+                "multiple_companions": true,
+                "companion_hub_path": "USB#ROOT_HUB30#4\u00265e9e03d\u00260\u00260#{f18a0e88-c30c-11d0-8815-00a0c906bed8}",
+                "companion_port": 2
+              }
+            },
+            {
+              "number": 4,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "ss5",
+              "connector": {
+                "type_c": false,
+                "user_connectable": false,
+                "multiple_companions": false
+              }
+            },
+            {
+              "number": 5,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "ss5",
+              "connector": {
+                "type_c": true,
+                "user_connectable": true,
+                "multiple_companions": true,
+                "companion_hub_path": "USB#ROOT_HUB30#4\u00265e9e03d\u00260\u00260#{f18a0e88-c30c-11d0-8815-00a0c906bed8}",
+                "companion_port": 1
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "PCI\\VEN_8086\u0026DEV_E47D\u0026SUBSYS_380417AA\u0026REV_01\\3\u002611583659\u00260\u0026A0",
+      "name": "Intel(R) USB 3.20 eXtensible Host Controller - 1.20 (Microsoft)",
+      "kind": "xhci",
+      "max_bandwidth": 10000000000,
+      "device_path": "\\\\?\\PCI#VEN_8086\u0026DEV_E47D\u0026SUBSYS_380417AA\u0026REV_01#3\u002611583659\u00260\u0026A0#{3abf6f2d-71c4-462a-8a92-1e6861e6af27}",
+      "instance_id": "PCI\\VEN_8086\u0026DEV_E47D\u0026SUBSYS_380417AA\u0026REV_01\\3\u002611583659\u00260\u0026A0",
+      "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0003",
+      "root_hub": {
+        "id": "USB\\ROOT_HUB30\\4\u00265E9E03D\u00260\u00260",
+        "port_path": "2",
+        "vendor_id": 0,
+        "product_id": 0,
+        "bcd_device": 0,
+        "bcd_usb": 0,
+        "class": "hub",
+        "usb_class": 9,
+        "usb_subclass": 0,
+        "usb_protocol": 0,
+        "description": "USB Root Hub (USB 3.0)",
+        "instance_id": "USB\\ROOT_HUB30\\4\u00265E9E03D\u00260\u00260",
+        "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0005",
+        "claimed_speed": "unknown",
+        "iso_reserved": 0,
+        "power_draw_ma": 0,
+        "hub": {
+          "kind": "root",
+          "depth": 0,
+          "port_count": 12,
+          "bus_powered": false,
+          "device_path": "USB#ROOT_HUB30#4\u00265e9e03d\u00260\u00260#{f18a0e88-c30c-11d0-8815-00a0c906bed8}",
+          "ports": [
+            {
+              "number": 1,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high",
+              "connector": {
+                "type_c": true,
+                "user_connectable": true,
+                "multiple_companions": true,
+                "companion_hub_path": "USB#ROOT_HUB30#4\u002634c97ea0\u00260\u00260#{f18a0e88-c30c-11d0-8815-00a0c906bed8}",
+                "companion_port": 5
+              }
+            },
+            {
+              "number": 2,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high",
+              "connector": {
+                "type_c": true,
+                "user_connectable": true,
+                "multiple_companions": true,
+                "companion_hub_path": "USB#ROOT_HUB30#4\u002634c97ea0\u00260\u00260#{f18a0e88-c30c-11d0-8815-00a0c906bed8}",
+                "companion_port": 3
+              }
+            },
+            {
+              "number": 3,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high",
+              "connector": {
+                "type_c": true,
+                "user_connectable": true,
+                "multiple_companions": true,
+                "companion_hub_path": "USB#ROOT_HUB30#4\u002634c97ea0\u00260\u00260#{f18a0e88-c30c-11d0-8815-00a0c906bed8}",
+                "companion_port": 2
+              }
+            },
+            {
+              "number": 4,
+              "status": "connected",
+              "negotiated_link": "high",
+              "max_link": "high",
+              "connector": {
+                "type_c": false,
+                "user_connectable": false,
+                "multiple_companions": false
+              },
+              "device": {
+                "id": "USB\\VID_174F\u0026PID_11BF\\SCRUBBED-01",
+                "port_path": "2/4",
+                "vendor_id": 5967,
+                "product_id": 4543,
+                "bcd_device": 4116,
+                "bcd_usb": 513,
+                "vendor_name": "Syntek",
+                "class": "video",
+                "usb_class": 239,
+                "usb_subclass": 2,
+                "usb_protocol": 1,
+                "interfaces": [
+                  {
+                    "number": 0,
+                    "class": 14,
+                    "subclass": 1,
+                    "protocol": 1,
+                    "kind": "video",
+                    "endpoints": 1
+                  },
+                  {
+                    "number": 1,
+                    "class": 14,
+                    "subclass": 2,
+                    "protocol": 1,
+                    "kind": "video",
+                    "endpoints": 0
+                  },
+                  {
+                    "number": 2,
+                    "class": 14,
+                    "subclass": 1,
+                    "protocol": 1,
+                    "kind": "video",
+                    "endpoints": 1
+                  },
+                  {
+                    "number": 3,
+                    "class": 14,
+                    "subclass": 2,
+                    "protocol": 1,
+                    "kind": "video",
+                    "endpoints": 0
+                  },
+                  {
+                    "number": 4,
+                    "class": 254,
+                    "subclass": 1,
+                    "protocol": 1,
+                    "kind": "unknown",
+                    "endpoints": 0
+                  }
+                ],
+                "manufacturer": "SunplusIT Inc",
+                "product": "Integrated RGB Camera",
+                "serial_number": "SCRUBBED-01",
+                "description": "USB Composite Device",
+                "instance_id": "USB\\VID_174F\u0026PID_11BF\\SCRUBBED-01",
+                "driver_key": "{36fc9e60-c465-11cf-8056-444553540000}\\0008",
+                "location": "Port_#0004.Hub_#0002",
+                "claimed_speed": "high",
+                "iso_reserved": 0,
+                "power_draw_ma": 500
+              }
+            },
+            {
+              "number": 5,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high",
+              "connector": {
+                "type_c": false,
+                "user_connectable": false,
+                "multiple_companions": false
+              }
+            },
+            {
+              "number": 6,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high",
+              "connector": {
+                "type_c": false,
+                "user_connectable": false,
+                "multiple_companions": false
+              }
+            },
+            {
+              "number": 7,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high",
+              "connector": {
+                "type_c": false,
+                "user_connectable": true,
+                "multiple_companions": false
+              }
+            },
+            {
+              "number": 8,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high",
+              "connector": {
+                "type_c": false,
+                "user_connectable": false,
+                "multiple_companions": false
+              }
+            },
+            {
+              "number": 9,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high",
+              "connector": {
+                "type_c": false,
+                "user_connectable": true,
+                "multiple_companions": false
+              }
+            },
+            {
+              "number": 10,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "high",
+              "connector": {
+                "type_c": false,
+                "user_connectable": true,
+                "multiple_companions": false
+              }
+            },
+            {
+              "number": 11,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "ss5",
+              "connector": {
+                "type_c": false,
+                "user_connectable": false,
+                "multiple_companions": false
+              }
+            },
+            {
+              "number": 12,
+              "status": "none",
+              "negotiated_link": "none",
+              "max_link": "ss5",
+              "connector": {
+                "type_c": false,
+                "user_connectable": false,
+                "multiple_companions": false
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "usb4": [
+    {
+      "id": "USB4\\ROOT_DEVICE_ROUTER\u0026VID_8086\u0026PID_E433\\4\u0026A86FA66\u00260\u00260",
+      "instance_id": "USB4\\ROOT_DEVICE_ROUTER\u0026VID_8086\u0026PID_E433\\4\u0026A86FA66\u00260\u00260",
+      "name": "USB4 Root Router (1.0)",
+      "vendor_id": 32902,
+      "product_id": 58419,
+      "kind": "host",
+      "parent_id": "PCI\\VEN_8086\u0026DEV_E433\u0026SUBSYS_380217AA\u0026REV_01\u0026USB4_MS_CM\\3\u002611583659\u00260\u00266A",
+      "depth": 0
+    },
+    {
+      "id": "USB4\\ROOT_DEVICE_ROUTER\u0026VID_8086\u0026PID_E434\\4\u00262C0ACD57\u00260\u00260",
+      "instance_id": "USB4\\ROOT_DEVICE_ROUTER\u0026VID_8086\u0026PID_E434\\4\u00262C0ACD57\u00260\u00260",
+      "name": "USB4 Root Router (1.0)",
+      "vendor_id": 32902,
+      "product_id": 58420,
+      "kind": "host",
+      "parent_id": "PCI\\VEN_8086\u0026DEV_E434\u0026SUBSYS_380117AA\u0026REV_01\u0026USB4_MS_CM\\3\u002611583659\u00260\u00266B",
+      "depth": 0
+    },
+    {
+      "id": "USB4\\VID_13FE\u0026PID_6900\\5\u002615784E09\u00260\u00263",
+      "instance_id": "USB4\\VID_13FE\u0026PID_6900\\5\u002615784E09\u00260\u00263",
+      "name": "USB4 Router (2.0), Corsair - EX400U",
+      "vendor_id": 5118,
+      "product_id": 26880,
+      "kind": "device",
+      "parent_id": "USB4\\ROOT_DEVICE_ROUTER\u0026VID_8086\u0026PID_E433\\4\u0026A86FA66\u00260\u00260",
+      "depth": 1
+    }
+  ]
+}

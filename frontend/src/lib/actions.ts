@@ -41,6 +41,26 @@ export const flash: Action<HTMLElement, FlashParams> = (node, params) => {
 }
 
 /**
+ * Reports the node's content width now and whenever it changes. Falls
+ * back to a single measurement where ResizeObserver does not exist
+ * (jsdom), so components never touch the constructor themselves.
+ */
+export const observeWidth: Action<HTMLElement, (width: number) => void> = (node, handler) => {
+  let current = handler
+  const report = (): void => current(node.clientWidth)
+  report()
+  const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(report) : null
+  observer?.observe(node)
+  return {
+    update: (next) => {
+      current = next
+      report()
+    },
+    destroy: () => observer?.disconnect(),
+  }
+}
+
+/**
  * Calls the handler when a pointer press lands outside the node. Used by
  * popovers such as the capability hint.
  */

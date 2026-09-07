@@ -1,8 +1,11 @@
 // Smoke tests: each shared component renders real data without runtime
 // errors and shows the text a user relies on.
 import { describe, expect, it, vi } from 'vitest'
+import { tick } from 'svelte'
 import { fireEvent, render, screen } from '@testing-library/svelte'
 import TopologyTree from './TopologyTree.svelte'
+import TopologyGraph from './TopologyGraph.svelte'
+import ViewSwitch from './ViewSwitch.svelte'
 import InsightList from './InsightList.svelte'
 import Timeline from './Timeline.svelte'
 import LinkBadge from './LinkBadge.svelte'
@@ -11,6 +14,7 @@ import Legend from './Legend.svelte'
 import ConnectionBanner from './ConnectionBanner.svelte'
 import Header from './Header.svelte'
 import { indexTopology } from '../lib/topology'
+import { visiblePorts } from '../lib/ports'
 import { applySample, emptyThroughput } from '../lib/throughput'
 import { flaggedDevices } from '../lib/insights'
 import { insight, sampleTopology } from '../lib/fixtures.test-helpers'
@@ -19,6 +23,10 @@ import type { TreeContext } from '../lib/tree'
 const topology = sampleTopology()
 const index = indexTopology(topology)
 const finding = insight()
+const root = topology.controllers[0].root_hub
+if (!root) throw new Error('fixture has no root hub')
+const dock = root.hub?.ports[0].device
+if (!dock) throw new Error('fixture has no dock')
 
 describe('TopologyTree', () => {
   it('renders controllers, devices, link badges, meters and warnings', () => {
@@ -27,13 +35,16 @@ describe('TopologyTree', () => {
       throughput: applySample(emptyThroughput(), { device_id: 'USB\\VID_1B1C&PID_1A20\\SSD', at: '', read_bps: 800_000_000, write_bps: 0 }, 0),
       showMeter: true,
     }
-    render(TopologyTree, { topology: { ...topology, warnings: ['hub 3 would not open'] }, ctx, loading: false })
+    const { container } = render(TopologyTree, { topology: { ...topology, warnings: ['hub 3 would not open'] }, ctx, loading: false })
     expect(screen.getByText('Test xHCI')).toBeInTheDocument()
     expect(screen.getByText('Corsair EX400U')).toBeInTheDocument()
     expect(screen.getByText('USB Input Device')).toBeInTheDocument()
     expect(screen.getByText('hub 3 would not open')).toBeInTheDocument()
     expect(screen.getByText('100.0 MB/s')).toBeInTheDocument()
     expect(screen.getAllByTitle('Mentioned in a finding').length).toBeGreaterThan(0)
+    // Every device row shows the socket it is plugged into next to its port number.
+    expect(container.querySelectorAll('.socket')).toHaveLength(3)
+    expect(container.querySelectorAll('.socket.empty')).toHaveLength(0)
   })
 
   it('collapses and expands a hub', async () => {
@@ -53,6 +64,85 @@ describe('TopologyTree', () => {
     unmount()
     render(TopologyTree, { topology: { ...topology, controllers: [] }, ctx, loading: false })
     expect(screen.getByText('No USB controllers were found.')).toBeInTheDocument()
+  })
+})
+
+describe('TopologyGraph', () => {
+  const busy: TreeContext = {
+    flagged: flaggedDevices([finding]),
+    throughput: applySample(emptyThroughput(), { device_id: 'USB\\VID_1B1C&PID_1A20\\SSD', at: '', read_bps: 800_000_000, write_bps: 0 }, 0),
+    showMeter: true,
+  }
+  const quiet: TreeContext = { flagged: new Map(), throughput: emptyThroughput(), showMeter: false }
+
+  it('draws a node per device, an edge per link, flow on busy links and pulses flagged devices', async () => {
+    const { container } = render(TopologyGraph, { topology: { ...topology, warnings: ['hub 3 would not open'] }, ctx: busy, loading: false })
+    await tick()
+    expect(screen.getByText('Test xHCI')).toBeInTheDocument()
+    expect(screen.getByText('Corsair EX400U')).toBeInTheDocument()
+    expect(screen.getByText('USB Input Device')).toBeInTheDocument()
+    expect(screen.getByText('hub 3 would not open')).toBeInTheDocument()
+    expect(container.querySelectorAll('.node')).toHaveLength(4)
+    expect(container.querySelectorAll('.edge')).toHaveLength(3)
+    expect(container.querySelectorAll('.edge.health-good')).toHaveLength(3)
+    // The SSD's traffic flows on its own link and on the dock's uplink, not on the mouse's.
+    expect(container.querySelectorAll('.flow')).toHaveLength(2)
+    expect(screen.getAllByRole('meter')).toHaveLength(3)
+    expect(container.querySelector('.node.flagged.pulse')).not.toBeNull()
+    expect(screen.getAllByTitle('Mentioned in a finding').length).toBeGreaterThan(0)
+  })
+
+  it('draws a socket per visible port, including the empty one', async () => {
+    const { container } = render(TopologyGraph, { topology, ctx: quiet, loading: false })
+    await tick()
+    // Root hub: USB-C (dock), USB-A (mouse), empty USB-A. Dock hub: three ports.
+    const visible = visiblePorts(root, topology).length + visiblePorts(dock, topology).length
+    expect(visible).toBe(6)
+    expect(container.querySelectorAll('.socket')).toHaveLength(visible)
+    expect(container.querySelectorAll('.socket.empty')).toHaveLength(3)
+    expect(screen.getByLabelText('Port 3: USB-A, up to 10 Gbps, empty. USB-A Data (rear)')).toBeInTheDocument()
+    expect(screen.getByLabelText('Port 1: USB-C, up to 10 Gbps, in use')).toBeInTheDocument()
+  })
+
+  it('collapses a hub, hides its subtree and says how many devices are hidden', async () => {
+    const { container } = render(TopologyGraph, { topology, ctx: quiet, loading: false })
+    await fireEvent.click(screen.getByLabelText('Collapse CalDigit TS4 USB3.2 Gen2 HUB'))
+    expect(screen.queryByText('Corsair EX400U')).not.toBeInTheDocument()
+    expect(screen.getByText('1 hidden')).toBeInTheDocument()
+    expect(container.querySelectorAll('.edge')).toHaveLength(2)
+    await fireEvent.click(screen.getByLabelText('Expand CalDigit TS4 USB3.2 Gen2 HUB'))
+    expect(screen.getByText('Corsair EX400U')).toBeInTheDocument()
+  })
+
+  it('zooms with the toolbar and returns to fit', async () => {
+    render(TopologyGraph, { topology, ctx: quiet, loading: false })
+    expect(screen.getByText('100%')).toBeInTheDocument()
+    await fireEvent.click(screen.getByLabelText('Zoom in'))
+    await fireEvent.click(screen.getByLabelText('Zoom in'))
+    expect(screen.getByText('130%')).toBeInTheDocument()
+    await fireEvent.click(screen.getByLabelText('Zoom out'))
+    expect(screen.getByText('115%')).toBeInTheDocument()
+    await fireEvent.click(screen.getByLabelText('Fit to width'))
+    expect(screen.getByText('100%')).toBeInTheDocument()
+  })
+
+  it('shows the loading and empty states', () => {
+    const { unmount } = render(TopologyGraph, { topology: null, ctx: quiet, loading: true })
+    expect(screen.getByText('Reading the USB tree...')).toBeInTheDocument()
+    unmount()
+    render(TopologyGraph, { topology: { ...topology, controllers: [] }, ctx: quiet, loading: false })
+    expect(screen.getByText('No USB controllers were found.')).toBeInTheDocument()
+  })
+})
+
+describe('ViewSwitch', () => {
+  it('marks the active view and reports a change', async () => {
+    const onChange = vi.fn()
+    render(ViewSwitch, { value: 'graph', onChange })
+    expect(screen.getByRole('button', { name: 'Diagram' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Tree' })).toHaveAttribute('aria-pressed', 'false')
+    await fireEvent.click(screen.getByRole('button', { name: 'Tree' }))
+    expect(onChange).toHaveBeenCalledWith('tree')
   })
 })
 
@@ -108,10 +198,15 @@ describe('small parts', () => {
     expect(screen.getByText('idle')).toBeInTheDocument()
   })
 
-  it('Legend lists classes and the speed ramp', () => {
-    render(Legend, { onClose: () => {} })
+  it('Legend lists classes, the speed ramp and the socket shapes', () => {
+    const { container } = render(Legend, { onClose: () => {} })
     expect(screen.getByText('Storage')).toBeInTheDocument()
     expect(screen.getByText('80 Gbps USB4')).toBeInTheDocument()
+    expect(screen.getByText('Sockets')).toBeInTheDocument()
+    expect(screen.getByText('USB-C')).toBeInTheDocument()
+    expect(screen.getByText('built in')).toBeInTheDocument()
+    expect(container.querySelectorAll('.socket')).toHaveLength(4)
+    expect(container.querySelectorAll('.socket .bolt')).toHaveLength(1)
   })
 
   it('ConnectionBanner offers a retry when degraded', async () => {

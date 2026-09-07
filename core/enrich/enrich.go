@@ -32,6 +32,28 @@ func Annotate(t *model.Topology) {
 				d.Class = refined
 			}
 		}
+		// A hub that belongs to a known dock can have its downstream ports
+		// resolved to the dock's printed labels and positions.
+		if d.Hub == nil {
+			return
+		}
+		dock, ok := kb.DockForHub(d.VendorID, d.ProductID)
+		if !ok {
+			return
+		}
+		for i := range d.Hub.Ports {
+			hp := &d.Hub.Ports[i]
+			mapping, ok := dock.PhysicalPort(d.VendorID, d.ProductID, hp.Number)
+			if !ok {
+				continue
+			}
+			if hp.Label == "" {
+				hp.Label = mapping.Label
+			}
+			if hp.Position == "" {
+				hp.Position = mapping.Position
+			}
+		}
 	})
 }
 

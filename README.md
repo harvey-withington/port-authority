@@ -44,6 +44,8 @@ cd frontend && npm run check && npm run test:run   # type-check and unit tests
 
 The frontend lives in [frontend/](frontend/); its shared components and colour tokens are documented in [frontend/UI-CONVENTIONS.md](frontend/UI-CONVENTIONS.md). Device classes and link speeds each have their own colour family, and link health (fine versus downgraded) is a separate ring so "how fast" and "is it right" never share a signal.
 
+The hero view is the topology diagram: controllers on the left, hubs and devices fanning out to the right, USB4 routers below. Line thickness is link capacity, colour (plus a dash pattern) is link health, and moving dashes show live transfers, with a hub's uplink carrying the sum of everything behind it. A device named by a new finding pulses. The tree view is one click away and shares the same collapse state.
+
 ## Layout
 
 | Path | Role |
@@ -60,6 +62,8 @@ The frontend lives in [frontend/](frontend/); its shared components and colour t
 | `cmd/pactl` | Collector CLI. Later the headless API service. |
 | `testdata/fixtures` | Captured real-world topologies used as regression fixtures. |
 | `tools/scrubfixture` | Replaces device serial numbers in a fixture with placeholders before it is shared. |
+| `docs` | Public: the spec, decision records, anything a contributor should read. Committed here. |
+| `plan` | Private: TODOs and planning notes. Its own separate private git repository, never pushed with this one. |
 
 ## Contributing a fixture
 

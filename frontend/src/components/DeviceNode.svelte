@@ -14,6 +14,7 @@
   import { t } from '../lib/i18n.svelte'
   import ClassIcon from './ClassIcon.svelte'
   import LinkBadge from './LinkBadge.svelte'
+  import PortSocket from './PortSocket.svelte'
   import ThroughputMeter from './ThroughputMeter.svelte'
   import DeviceNode from './DeviceNode.svelte'
 
@@ -74,7 +75,12 @@
         {/if}
       </div>
       <div class="meta">
-        {#if port}<span>{t('tree.port', { n: port.number })}</span>{/if}
+        {#if port}
+          <span class="socket-meta">
+            <PortSocket {port} occupied={true} />
+            <span>{t('tree.port', { n: port.number })}</span>
+          </span>
+        {/if}
         {#if device.hub}
           <span>{t('tree.hub.ports', { used: children.length, total: device.hub.port_count })}</span>
           {#if device.hub.bus_powered}<span>{t('tree.hub.busPowered')}</span>{/if}
@@ -157,6 +163,13 @@
     gap: var(--space-1) var(--space-3);
     color: var(--text-muted);
     font-size: var(--font-size-xs);
+  }
+  /* The socket the device is plugged into, next to its port number. */
+  .socket-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-secondary);
   }
   .children {
     margin-left: var(--tree-indent);

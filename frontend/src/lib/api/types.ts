@@ -56,6 +56,10 @@ export interface Port {
   status: ConnectionStatus
   negotiated_link: LinkSpeed
   max_link: LinkSpeed
+  /** Printed dock/chassis label for the socket, e.g. "USB-C Data". */
+  label?: string
+  /** Where the socket sits on the chassis, e.g. "front" / "rear". */
+  position?: string
   connector?: Connector
   alt_mode?: AltModeInfo
   device?: Device

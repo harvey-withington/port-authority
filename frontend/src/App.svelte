@@ -10,12 +10,15 @@
   import type { TreeContext } from './lib/tree'
   import { expanded } from './lib/expanded.svelte'
   import { focus } from './lib/focus.svelte'
+  import { view } from './lib/view.svelte'
   import { relativeTime } from './lib/format'
   import { t } from './lib/i18n.svelte'
   import Header from './components/Header.svelte'
   import Legend from './components/Legend.svelte'
   import ConnectionBanner from './components/ConnectionBanner.svelte'
   import StartingScreen from './components/StartingScreen.svelte'
+  import ViewSwitch from './components/ViewSwitch.svelte'
+  import TopologyGraph from './components/TopologyGraph.svelte'
   import TopologyTree from './components/TopologyTree.svelte'
   import InsightList from './components/InsightList.svelte'
   import Timeline from './components/Timeline.svelte'
@@ -86,8 +89,15 @@
 
     <main class="panes">
       <section class="pane" aria-labelledby="pane-connected">
-        <h2 id="pane-connected">{t('pane.connected')}</h2>
-        <TopologyTree topology={live.topology} {ctx} loading={live.state === 'connecting'} />
+        <div class="pane-head">
+          <h2 id="pane-connected">{t('pane.connected')}</h2>
+          <ViewSwitch value={view.current} onChange={(next) => view.set(next)} />
+        </div>
+        {#if view.current === 'graph'}
+          <TopologyGraph topology={live.topology} {ctx} loading={live.state === 'connecting'} />
+        {:else}
+          <TopologyTree topology={live.topology} {ctx} loading={live.state === 'connecting'} />
+        {/if}
       </section>
       <section class="pane" aria-labelledby="pane-found">
         <h2 id="pane-found">{t('pane.found')}</h2>
@@ -141,6 +151,16 @@
   }
   h2.changed {
     margin-top: var(--space-5);
+  }
+  .pane-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin: 0 var(--space-2) var(--space-2);
+  }
+  .pane-head h2 {
+    margin: 0;
   }
   .footer {
     display: flex;

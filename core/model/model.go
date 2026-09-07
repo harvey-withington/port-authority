@@ -312,8 +312,12 @@ type Port struct {
 	NegotiatedLink LinkSpeed        `json:"negotiated_link"`
 	MaxLink        LinkSpeed        `json:"max_link"`
 	Connector      *Connector       `json:"connector,omitempty"`
-	AltMode        *AltModeInfo     `json:"alt_mode,omitempty"`
-	Device         *Device          `json:"device,omitempty"`
+	// Label and Position are the printed label and placement (front/rear)
+	// of the physical socket from the dock knowledge base, when known.
+	Label    string       `json:"label,omitempty"`
+	Position string       `json:"position,omitempty"`
+	AltMode  *AltModeInfo `json:"alt_mode,omitempty"`
+	Device   *Device      `json:"device,omitempty"`
 }
 
 // Connector describes the physical socket behind a logical port.

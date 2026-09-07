@@ -320,7 +320,7 @@ func (w *walker) readString(h windows.Handle, number int, strIndex uint8, lang u
 //	 0 ULONG ConnectionIndex, 4 ULONG ActualLength, 8 ULONG UsbPortProperties,
 //	12 USHORT CompanionIndex, 14 USHORT CompanionPortNumber, 16 WCHAR CompanionHubSymbolicLinkName[]
 func (w *walker) connectorProperties(h windows.Handle, number int) *model.Connector {
-	probe := make([]byte, 16)
+	probe := make([]byte, 20)
 	binary.LittleEndian.PutUint32(probe[0:], uint32(number))
 	if _, err := ioctl(h, ioctlUSBGetPortConnectorProperties, probe, probe); err != nil {
 		return nil

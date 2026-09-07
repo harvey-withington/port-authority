@@ -42,6 +42,36 @@ func TestAnnotate(t *testing.T) {
 	Annotate(nil) // must not panic
 }
 
+func TestAnnotateSetsDockPortLabelAndPosition(t *testing.T) {
+	hub := &model.Device{
+		ID: "dock-hub", VendorID: 0x2188, ProductID: 0x5501,
+		Hub: &model.Hub{Ports: []model.Port{
+			{Number: 1, Status: model.StatusConnected},
+			{Number: 2, Status: model.StatusConnected},
+			{Number: 3, Status: model.StatusConnected},
+		}},
+	}
+	root := &model.Device{ID: "root", Hub: &model.Hub{Ports: []model.Port{
+		{Number: 1, Device: hub},
+	}}}
+	topo := &model.Topology{Controllers: []model.Controller{{ID: "c", RootHub: root}}}
+
+	Annotate(topo)
+
+	port3 := hub.Hub.Ports[2]
+	if port3.Label != "USB-C Data" {
+		t.Errorf("port 3 Label = %q, want %q", port3.Label, "USB-C Data")
+	}
+	if port3.Position != "front" {
+		t.Errorf("port 3 Position = %q, want %q", port3.Position, "front")
+	}
+
+	port1 := hub.Hub.Ports[0]
+	if port1.Label != "" || port1.Position != "" {
+		t.Errorf("port 1 unexpectedly annotated: label=%q position=%q", port1.Label, port1.Position)
+	}
+}
+
 func TestAnnotateRefinesVagueClassFromKnowledgeBase(t *testing.T) {
 	prompter := &model.Device{ID: "prompter", VendorID: 0x17e9, ProductID: 0xff1a, Class: model.ClassVendor}
 	storage := &model.Device{ID: "ssd", VendorID: 0x1b1c, ProductID: 0x1a20, Class: model.ClassStorage}
