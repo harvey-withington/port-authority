@@ -1,6 +1,5 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import { Maximize2, Minus, Plus } from 'lucide-svelte'
   import type { Topology } from '../lib/api/types'
   import type { TreeContext } from '../lib/tree'
   import type { DetailLevel } from '../lib/view.svelte'
@@ -8,6 +7,7 @@
   import { deviceName, routerName } from '../lib/topology'
   import { expanded } from '../lib/expanded.svelte'
   import { observeWidth } from '../lib/actions'
+  import { clampZoom, zoom } from '../lib/zoom.svelte'
   import { t } from '../lib/i18n.svelte'
   import CollectionWarnings from './CollectionWarnings.svelte'
   import GraphEdges from './GraphEdges.svelte'
@@ -23,9 +23,6 @@
 
   let { topology, ctx, loading, detail }: Props = $props()
 
-  const MIN_ZOOM = 0.5
-  const MAX_ZOOM = 1.5
-  const ZOOM_STEP = 0.15
   /** How long a newly flagged device and its uplink pulse. */
   const PULSE_MS = 6_000
 
@@ -45,17 +42,15 @@
     return n.device ? deviceName(n.device) : ''
   }
 
-  // Zoom: fit to the pane width until the user takes over with the buttons.
+  // Fit to the pane width until the user takes over. Only this component
+  // knows the pane's width and the drawing's, so it works the fit out and
+  // hands it to the shared store the header control also reads.
   let viewportWidth = $state(0)
-  let manualZoom = $state<number | null>(null)
-  const clamp = (z: number): number => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, z))
-  const fitZoom = $derived(viewportWidth > 0 && layout.width > 0 ? Math.min(1, clamp(viewportWidth / layout.width)) : 1)
-  const zoom = $derived(manualZoom ?? fitZoom)
-  const zoomLabel = $derived(t('format.percent', { n: Math.round(zoom * 100) }))
-
-  function zoomBy(delta: number): void {
-    manualZoom = clamp(zoom + delta)
-  }
+  const fitZoom = $derived(viewportWidth > 0 && layout.width > 0 ? Math.min(1, clampZoom(viewportWidth / layout.width)) : 1)
+  $effect(() => {
+    zoom.setFit(fitZoom)
+  })
+  const scale = $derived(zoom.value)
 
   // Devices an insight has just named pulse for a while, then settle to the flagged tint.
   let pulsing = $state<ReadonlySet<string>>(new Set())
@@ -89,22 +84,9 @@
   {:else if layout.nodes.length === 0}
     <p class="empty">{t('tree.empty')}</p>
   {:else}
-    <div class="toolbar" role="group" aria-label={t('graph.zoom')}>
-      <button class="tool" onclick={() => zoomBy(-ZOOM_STEP)} disabled={zoom <= MIN_ZOOM} aria-label={t('graph.zoomOut')} title={t('graph.zoomOut')}>
-        <Minus size={14} aria-hidden="true" />
-      </button>
-      <span class="zoom mono" aria-live="polite">{zoomLabel}</span>
-      <button class="tool" onclick={() => zoomBy(ZOOM_STEP)} disabled={zoom >= MAX_ZOOM} aria-label={t('graph.zoomIn')} title={t('graph.zoomIn')}>
-        <Plus size={14} aria-hidden="true" />
-      </button>
-      <button class="tool" onclick={() => (manualZoom = null)} aria-pressed={manualZoom === null} aria-label={t('graph.zoomFit')} title={t('graph.zoomFit')}>
-        <Maximize2 size={14} aria-hidden="true" />
-      </button>
-    </div>
-
     <div class="viewport" use:observeWidth={(w) => (viewportWidth = w)}>
-      <div class="canvas" style:width={`${layout.width * zoom}px`} style:height={`${layout.height * zoom}px`}>
-        <div class="scaled" style:transform={`scale(${zoom})`} style:width={`${layout.width}px`} style:height={`${layout.height}px`}>
+      <div class="canvas" style:width={`${layout.width * scale}px`} style:height={`${layout.height * scale}px`}>
+        <div class="scaled" style:transform={`scale(${scale})`} style:width={`${layout.width}px`} style:height={`${layout.height}px`}>
           <GraphEdges edges={layout.edges} width={layout.width} height={layout.height} {pulsing} {nameOf} showTraffic={ctx.showMeter} />
           {#each layout.nodes as node (node.id)}
             <GraphNodeCard {node} {ctx} pulse={pulsing.has(node.id)} />
@@ -120,52 +102,16 @@
     display: flex;
     flex-direction: column;
     position: relative;
-  }
-  .toolbar {
-    align-self: flex-end;
-    margin-bottom: var(--space-2);
-    display: inline-flex;
-    align-items: center;
-    gap: 2px;
-    padding: 2px;
-    background: var(--bg-elevated);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    box-shadow: 0 2px 8px var(--shadow);
-  }
-  .tool {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border: 0;
-    border-radius: 999px;
-    background: transparent;
-    color: var(--text-secondary);
-  }
-  .tool:hover:not(:disabled),
-  .tool[aria-pressed='true'] {
-    background: var(--bg-subtle-hover);
-    color: var(--text-strong);
-  }
-  .tool:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
-  .zoom {
-    min-width: 40px;
-    text-align: center;
-    font-size: var(--font-size-xs);
-    color: var(--text-muted);
-    font-variant-numeric: tabular-nums;
+    /* Fills the pane it is given rather than a share of the window: the
+       pane's height is the user's to set with the splitter. */
+    flex: 1;
+    min-height: 0;
   }
   .viewport {
     position: relative;
     overflow: auto;
-    max-height: 72vh;
-    min-height: 160px;
+    flex: 1;
+    min-height: 120px;
     border-radius: var(--radius-md);
     background:
       radial-gradient(circle, var(--border-muted) 1px, transparent 1px) 0 0 / 18px 18px,

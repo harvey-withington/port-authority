@@ -89,6 +89,8 @@ export interface GraphNode {
   hiddenCount: number
   /** A hub here could not be read to the end, so its ports are unknown. */
   incomplete?: boolean
+  /** USB4 host routers folded into this box (the computer's own). */
+  hostRouters?: number
   /** Bits per second through this node's uplink: its own sample, or the sum of its subtree. */
   bps: number
 }
@@ -319,13 +321,28 @@ function placeAll(groups: LayoutItem[][]): GraphLayout {
 
 /**
  * The USB4 / Thunderbolt fabric, which the OS reports as a separate bus.
- * Its routers are the same physical boxes as the hubs above, but nothing in
- * a snapshot ties a router to the hub it shares a chassis with, so both
- * views draw the chain as its own group rather than inventing the link.
+ *
+ * A host router is silicon inside the computer; a device router is a box
+ * someone plugged in. Nothing in a snapshot says which socket that box
+ * arrived on, so neither view invents one.
  */
-function routerGroup(topology: Topology | null): LayoutItem[] {
+interface RouterTree {
+  /** Routers with no parent router in the snapshot. */
+  roots: USB4Router[]
+  childrenOf: ReadonlyMap<string, USB4Router[]>
+  build: (router: USB4Router) => LayoutItem
+  /** The PCIe devices a router carries, as leaf items to hang off it. */
+  carriedOf: (router: USB4Router) => LayoutLink[]
+}
+
+/** The link a router hangs from: a USB4 cable, whose socket is unknown. */
+function routerLink(item: LayoutItem): LayoutLink {
+  return { item, port: null, speed: USB4_ROUTER_SPEED, max: USB4_ROUTER_SPEED, health: 'idle' }
+}
+
+function routerTree(topology: Topology | null): RouterTree | null {
   const routers = topology?.usb4 ?? []
-  if (routers.length === 0) return []
+  if (routers.length === 0) return null
 
   const ids = new Set(routers.map((r) => normalizeId(r.id)))
   const childrenOf = new Map<string, USB4Router[]>()
@@ -339,23 +356,58 @@ function routerGroup(topology: Topology | null): LayoutItem[] {
     }
   }
 
+  const carriedOf = (router: USB4Router): LayoutLink[] => {
+    const id = normalizeId(router.id)
+    return (router.children ?? []).map((label, i) => {
+      const leaf = blankNode(`${id}#carried-${i}`, 'carried')
+      leaf.label = label
+      return { item: { node: leaf, children: [] }, port: null, speed: 'unknown' as LinkSpeed, max: 'unknown' as LinkSpeed, health: 'idle' as LinkHealth }
+    })
+  }
+
   const build = (router: USB4Router): LayoutItem => {
     const node = blankNode(normalizeId(router.id), 'router')
     node.router = router
-    const children: LayoutLink[] = []
-    for (const child of childrenOf.get(node.id) ?? []) {
-      children.push({ item: build(child), port: null, speed: USB4_ROUTER_SPEED, max: USB4_ROUTER_SPEED, health: 'idle' })
-    }
-    const carried = router.children ?? []
-    for (let i = 0; i < carried.length; i++) {
-      const leaf = blankNode(`${node.id}#carried-${i}`, 'carried')
-      leaf.label = carried[i]
-      children.push({ item: { node: leaf, children: [] }, port: null, speed: 'unknown', max: 'unknown', health: 'idle' })
-    }
-    return { node, children }
+    const children = (childrenOf.get(node.id) ?? []).map((child) => routerLink(build(child)))
+    return { node, children: [...children, ...carriedOf(router)] }
   }
 
-  return roots.map(build)
+  return { roots, childrenOf, build, carriedOf }
+}
+
+/** The whole fabric as its own group: what the OS reports, for the logical view. */
+function routerGroup(topology: Topology | null): LayoutItem[] {
+  const tree = routerTree(topology)
+  return tree ? tree.roots.map(tree.build) : []
+}
+
+/**
+ * The fabric as physical objects: everything hanging off the computer's own
+ * routers, with those routers folded into the computer the way a root hub
+ * is. A USB4 SSD tunnels PCIe and so never appears in the hub tree; without
+ * this it floats in a group of its own, when it is plainly plugged into the
+ * machine. The socket it is in stays unknown, so the edge leaves from the
+ * middle rather than from a socket we would have to guess at.
+ */
+function routersOnTheComputer(topology: Topology | null): { links: LayoutLink[], hosts: number } {
+  const tree = routerTree(topology)
+  if (!tree) return { links: [], hosts: 0 }
+
+  const links: LayoutLink[] = []
+  let hosts = 0
+  for (const root of tree.roots) {
+    if (root.kind !== 'host') {
+      // A device router with no host above it: still something plugged in.
+      links.push(routerLink(tree.build(root)))
+      continue
+    }
+    hosts++
+    for (const child of tree.childrenOf.get(normalizeId(root.id)) ?? []) {
+      links.push(routerLink(tree.build(child)))
+    }
+    links.push(...tree.carriedOf(root))
+  }
+  return { links, hosts }
 }
 
 // ---------------------------------------------------------------------------
@@ -492,7 +544,20 @@ export function layoutPhysical(topology: Topology | null, opts: GraphOptions): G
     return { node, children }
   }
 
-  const groups: LayoutItem[][] = buildPhysical(topology).map((root) => [build(root, null)])
-  groups.push(routerGroup(topology))
+  const roots = buildPhysical(topology)
+  const items = roots.map((root) => build(root, null))
+  const { links, hosts } = routersOnTheComputer(topology)
+
+  // The computer's own routers belong to the computer, so what they carry
+  // hangs off it. With no computer to hang it from, the fabric keeps its
+  // own group rather than being dropped.
+  const computer = items.find((item) => item.node.kind === 'box' && item.node.id === 'host')
+  if (computer) {
+    computer.node.hostRouters = hosts
+    computer.children.push(...links)
+  }
+
+  const groups: LayoutItem[][] = items.map((item) => [item])
+  if (!computer) groups.push(routerGroup(topology))
   return placeAll(groups)
 }

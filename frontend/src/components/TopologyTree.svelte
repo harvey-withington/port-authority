@@ -39,6 +39,11 @@
   .tree {
     display: flex;
     flex-direction: column;
+    /* Scrolls inside its pane; the app shell never scrolls. */
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
   }
   .empty {
     padding: var(--space-4);

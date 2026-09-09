@@ -1,11 +1,12 @@
 // Smoke tests: each shared component renders real data without runtime
 // errors and shows the text a user relies on.
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { tick } from 'svelte'
 import { fireEvent, render, screen } from '@testing-library/svelte'
 import TopologyTree from './TopologyTree.svelte'
 import TopologyGraph from './TopologyGraph.svelte'
 import ViewSwitch from './ViewSwitch.svelte'
+import ZoomControl from './ZoomControl.svelte'
 import InsightList from './InsightList.svelte'
 import Timeline from './Timeline.svelte'
 import LinkBadge from './LinkBadge.svelte'
@@ -17,6 +18,7 @@ import { indexTopology } from '../lib/topology'
 import { visiblePorts } from '../lib/ports'
 import { applySample, emptyThroughput } from '../lib/throughput'
 import { flaggedDevices } from '../lib/insights'
+import { zoom } from '../lib/zoom.svelte'
 import { insight, sampleTopology } from '../lib/fixtures.test-helpers'
 import type { TreeContext } from '../lib/tree'
 
@@ -114,8 +116,26 @@ describe('TopologyGraph', () => {
     expect(screen.getByText('Corsair EX400U')).toBeInTheDocument()
   })
 
-  it('zooms with the toolbar and returns to fit', async () => {
-    render(TopologyGraph, { topology, ctx: quiet, loading: false, detail: 'logical' })
+  it('shows the loading and empty states', () => {
+    const { unmount } = render(TopologyGraph, { topology: null, ctx: quiet, loading: true, detail: 'logical' })
+    expect(screen.getByText('Reading the USB tree...')).toBeInTheDocument()
+    unmount()
+    render(TopologyGraph, { topology: { ...topology, controllers: [] }, ctx: quiet, loading: false, detail: 'logical' })
+    expect(screen.getByText('No USB controllers were found.')).toBeInTheDocument()
+  })
+})
+
+describe('ZoomControl', () => {
+  // The control lives in the pane header while the diagram it scales is in
+  // the pane body, so the level is shared module state; reset it so the
+  // test does not depend on what ran before.
+  beforeEach(() => {
+    zoom.fitToWidth()
+    zoom.setFit(1)
+  })
+
+  it('zooms in and out and returns to fit', async () => {
+    render(ZoomControl)
     expect(screen.getByText('100%')).toBeInTheDocument()
     await fireEvent.click(screen.getByLabelText('Zoom in'))
     await fireEvent.click(screen.getByLabelText('Zoom in'))
@@ -126,12 +146,12 @@ describe('TopologyGraph', () => {
     expect(screen.getByText('100%')).toBeInTheDocument()
   })
 
-  it('shows the loading and empty states', () => {
-    const { unmount } = render(TopologyGraph, { topology: null, ctx: quiet, loading: true, detail: 'logical' })
-    expect(screen.getByText('Reading the USB tree...')).toBeInTheDocument()
-    unmount()
-    render(TopologyGraph, { topology: { ...topology, controllers: [] }, ctx: quiet, loading: false, detail: 'logical' })
-    expect(screen.getByText('No USB controllers were found.')).toBeInTheDocument()
+  it('stops at the ends of the range', async () => {
+    render(ZoomControl)
+    const out = screen.getByLabelText('Zoom out')
+    for (let i = 0; i < 10; i++) await fireEvent.click(out)
+    expect(screen.getByText('50%')).toBeInTheDocument()
+    expect(out).toBeDisabled()
   })
 })
 

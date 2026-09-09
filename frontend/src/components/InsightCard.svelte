@@ -3,6 +3,8 @@
   import type { Insight } from '../lib/api/types'
   import type { DeviceIndex } from '../lib/topology'
   import { formatConfidence } from '../lib/format'
+  import { insightKey } from '../lib/insights'
+  import { findings } from '../lib/findings.svelte'
   import { t } from '../lib/i18n.svelte'
   import DeviceName from './DeviceName.svelte'
 
@@ -19,45 +21,61 @@
   const deviceIds = $derived(insight.device_ids ?? [])
   const evidence = $derived(insight.evidence ?? [])
   const Icon = $derived(insight.severity === 'critical' ? OctagonAlert : insight.severity === 'warning' ? CircleAlert : Info)
+
+  // Folding a finding down to its headline, so a list of them can be read
+  // one at a time. Kept apart from `open`, which is the evidence inside.
+  const key = $derived(insightKey(insight))
+  const shown = $derived(findings.isOpen(key))
+  const bodyId = $derived(`finding-${key.replace(/[^a-z0-9]+/gi, '-')}`)
+  const foldLabel = $derived(shown ? t('insight.fold', { name: insight.title }) : t('insight.unfold', { name: insight.title }))
 </script>
 
-<article class="card sev-{insight.severity}" style:--stripe={`var(--severity-${insight.severity})`}>
+<article class="card sev-{insight.severity}" class:folded={!shown} style:--stripe={`var(--severity-${insight.severity})`}>
   <header>
     <span class="icon" aria-label={t(`insight.severity.${insight.severity}`)} title={t(`insight.severity.${insight.severity}`)}>
       <Icon size={16} />
     </span>
-    <h3>{insight.title}</h3>
+    <h3>
+      <button class="fold" aria-expanded={shown} aria-controls={bodyId} title={foldLabel} onclick={() => findings.toggle(key)}>
+        <span class="title-text">{insight.title}</span>
+        <span class="chevron" aria-hidden="true">
+          {#if shown}<ChevronDown size={14} />{:else}<ChevronRight size={14} />{/if}
+        </span>
+      </button>
+    </h3>
   </header>
-  <p class="explanation">{insight.explanation}</p>
-  {#if insight.suggestion}
-    <p class="suggestion"><strong>{t('insight.suggestion')}:</strong> {insight.suggestion}</p>
-  {/if}
-  {#if deviceIds.length > 0}
-    <p class="devices">
-      <span class="label">{t('insight.devices')}:</span>
-      {#each deviceIds as id (id)}
-        <DeviceName {id} {index} onFocus={onFocusDevice} />
-      {/each}
-    </p>
-  {/if}
-  <button class="details-toggle" aria-expanded={open} onclick={() => (open = !open)}>
-    {#if open}<ChevronDown size={13} />{:else}<ChevronRight size={13} />{/if}
-    {open ? t('insight.details.hide') : t('insight.details.show')}
-  </button>
-  {#if open}
-    <div class="details">
-      {#if evidence.length > 0}
-        <h4>{t('insight.evidence')}</h4>
-        <ul>
-          {#each evidence as line (line)}<li>{line}</li>{/each}
-        </ul>
-      {/if}
-      <p class="meta">
-        <span>{t('insight.confidence', { percent: formatConfidence(insight.confidence) })}</span>
-        <span class="mono">{t('insight.rule', { rule: insight.rule_id })}</span>
+  <div class="body" id={bodyId} hidden={!shown}>
+    <p class="explanation">{insight.explanation}</p>
+    {#if insight.suggestion}
+      <p class="suggestion"><strong>{t('insight.suggestion')}:</strong> {insight.suggestion}</p>
+    {/if}
+    {#if deviceIds.length > 0}
+      <p class="devices">
+        <span class="label">{t('insight.devices')}:</span>
+        {#each deviceIds as id (id)}
+          <DeviceName {id} {index} onFocus={onFocusDevice} />
+        {/each}
       </p>
-    </div>
-  {/if}
+    {/if}
+    <button class="details-toggle" aria-expanded={open} onclick={() => (open = !open)}>
+      {#if open}<ChevronDown size={13} />{:else}<ChevronRight size={13} />{/if}
+      {open ? t('insight.details.hide') : t('insight.details.show')}
+    </button>
+    {#if open}
+      <div class="details">
+        {#if evidence.length > 0}
+          <h4>{t('insight.evidence')}</h4>
+          <ul>
+            {#each evidence as line (line)}<li>{line}</li>{/each}
+          </ul>
+        {/if}
+        <p class="meta">
+          <span>{t('insight.confidence', { percent: formatConfidence(insight.confidence) })}</span>
+          <span class="mono">{t('insight.rule', { rule: insight.rule_id })}</span>
+        </p>
+      </div>
+    {/if}
+  </div>
 </article>
 
 <style>
@@ -89,13 +107,51 @@
     flex-shrink: 0;
   }
   h3 {
+    flex: 1;
+    min-width: 0;
     font-size: var(--font-size-md);
     font-weight: 600;
     color: var(--text-primary);
   }
+  /* The whole headline is the fold control, so a list of findings can be
+     skimmed and opened one at a time. */
+  .fold {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    border-radius: var(--radius-sm);
+  }
+  .fold:hover .title-text {
+    color: var(--text-strong);
+  }
+  .title-text {
+    flex: 1;
+    min-width: 0;
+  }
+  .chevron {
+    display: inline-flex;
+    flex-shrink: 0;
+    margin-top: 1px;
+    color: var(--text-muted);
+  }
+  /* Folded: the headline alone, on one line. */
+  .card.folded .title-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .explanation {
-    margin-top: var(--space-2);
     color: var(--text-body);
+  }
+  .body {
+    margin-top: var(--space-2);
   }
   .suggestion {
     margin-top: var(--space-2);

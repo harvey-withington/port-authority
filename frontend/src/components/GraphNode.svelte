@@ -150,6 +150,7 @@
       {:else if isBox}
         {#if boxKind === 'host'}
           <span>{members.length === 1 ? t('box.controllers.one') : t('box.controllers', { n: members.length })}</span>
+          {#if node.hostRouters}<span>{node.hostRouters === 1 ? t('box.usb4.one') : t('box.usb4', { n: node.hostRouters })}</span>{/if}
         {:else if members.length > 1}
           <span>{t('box.folded', { n: members.length })}</span>
         {/if}

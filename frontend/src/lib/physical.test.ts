@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Device, Enclosure, Topology } from './api/types'
 import { buildPhysical, enclosureIdOf, memberIds, type PhysicalNode } from './physical'
-import { layoutPhysical } from './graph'
+import { layoutGraph, layoutPhysical } from './graph'
 import { emptyThroughput } from './throughput'
 import { connector, controller, device, hub, port, topology } from './fixtures.test-helpers'
 
@@ -201,5 +201,42 @@ describe('layoutPhysical', () => {
       throughput: emptyThroughput(),
     })
     expect(layout.nodes.map((n) => n.id)).toEqual(['host'])
+  })
+})
+
+describe('the USB4 fabric in the physical view', () => {
+  const withRouters = (): Topology => {
+    const root = device({ id: 'USB\ROOT', class: 'hub', enclosure: HOST, hub: hub([port(1, undefined)], { kind: 'root', depth: 0 }) })
+    return topology([controller(root)], {
+      usb4: [
+        { id: 'USB4\HOST', instance_id: 'USB4\HOST', name: 'USB4 Root Router (1.0)', vendor_id: 0x8086, product_id: 0xe433, kind: 'host', depth: 0 },
+        {
+          id: 'USB4\SSD', instance_id: 'USB4\SSD', name: 'USB4 Router (2.0), Phison - PS2321',
+          product_name: 'Corsair EX400U', vendor_id: 0x13fe, product_id: 0x6900, kind: 'device',
+          parent_id: 'USB4\HOST', depth: 1, children: ['NVMe disk (D:)'],
+        },
+      ],
+    })
+  }
+
+  it('hangs a plugged-in USB4 device off the computer, not off a group of its own', () => {
+    const layout = layoutPhysical(withRouters(), { isExpanded: allOpen, throughput: emptyThroughput() })
+    const edge = layout.edges.find((e) => e.to === 'USB4\SSD')
+    expect(edge?.from).toBe('host')
+    expect(edge?.speed).toBe('usb4_40')
+    // Its PCIe-tunnelled disk still hangs off the drive.
+    expect(layout.edges.some((e) => e.from === 'USB4\SSD' && e.to.includes('carried'))).toBe(true)
+  })
+
+  it('folds the computer\u2019s own host routers into it rather than drawing them', () => {
+    const layout = layoutPhysical(withRouters(), { isExpanded: allOpen, throughput: emptyThroughput() })
+    expect(layout.nodes.map((n) => n.id)).not.toContain('USB4\HOST')
+    expect(layout.nodes.find((n) => n.id === 'host')?.hostRouters).toBe(1)
+  })
+
+  it('keeps the fabric as its own group in the logical view', () => {
+    const layout = layoutGraph(withRouters(), { isExpanded: allOpen, throughput: emptyThroughput() })
+    expect(layout.nodes.map((n) => n.id)).toContain('USB4\HOST')
+    expect(layout.edges.find((e) => e.to === 'USB4\SSD')?.from).toBe('USB4\HOST')
   })
 })

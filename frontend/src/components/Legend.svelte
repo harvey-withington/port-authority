@@ -35,7 +35,13 @@
 </script>
 
 <section class="legend" aria-label={t('legend.title')}>
-  <header>
+  <!--
+    The window's title bar: a tab stop so the arrow keys that move it are
+    reachable without a pointer. There is no ARIA role for a title bar, so
+    the linter sees a heading row with a tabindex.
+  -->
+  <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+  <header tabindex="0" aria-label={t('legend.dragHint')} title={t('legend.dragHint')}>
     <h3>{t('legend.title')}</h3>
     <button class="close" onclick={onClose} aria-label={t('legend.close')}><X size={14} /></button>
   </header>
@@ -108,13 +114,36 @@
     box-shadow: 0 8px 24px var(--shadow-lg);
     font-size: var(--font-size-sm);
     color: var(--text-body);
-    width: min(420px, 100%);
+    /* The slot sets the width; filling it keeps the shadow, the visible
+       edge and the draggable box all the same size. */
+    width: 100%;
   }
+  /* Frosted glass over the diagram, but only where the blur actually
+     works: a translucent panel with nothing blurred behind it is just
+     hard to read, so the opaque background above stays the fallback. */
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .legend {
+      background: color-mix(in srgb, var(--bg-elevated) 72%, transparent);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+      backdrop-filter: blur(18px) saturate(140%);
+      border-color: color-mix(in srgb, var(--border) 70%, transparent);
+    }
+  }
+  /* Also the grab handle: the draggableWindow action sets the cursor, and
+     the focus ring shows the arrow keys move the window too. Pulled out to
+     the card's edges and given that padding back, so the whole top strip
+     is grabbable rather than a band floating inside it. */
   header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: var(--space-2);
+    margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-4)) var(--space-2);
+    padding: var(--space-3) var(--space-4) 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+  header:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
   h3 {
     font-size: var(--font-size-md);
