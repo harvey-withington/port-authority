@@ -65,6 +65,21 @@ export interface Port {
   device?: Device
 }
 
+export type EnclosureKind = 'host' | 'dock' | 'hub'
+
+/**
+ * The physical box a hub lives in. Windows reports a dock as a chain of
+ * hubs across two controllers and the computer as several controllers with
+ * a root hub each; hubs sharing an enclosure id are one object on the desk.
+ */
+export interface Enclosure {
+  id: string
+  kind: EnclosureKind
+  /** Set when the knowledge base names the box, e.g. "CalDigit TS4". */
+  name?: string
+  dock_id?: string
+}
+
 export interface Hub {
   kind: HubKind
   depth: number
@@ -102,6 +117,8 @@ export interface Device {
   children?: string[]
   truth_report?: TruthReport
   hub?: Hub
+  /** Only hubs carry one; a leaf device belongs to the box its port is on. */
+  enclosure?: Enclosure
 }
 
 export interface Controller {
@@ -123,6 +140,9 @@ export interface USB4Router {
   name: string
   vendor_id: number
   product_id: number
+  /** Resolved from the knowledge base: the product, not the bridge silicon. */
+  vendor_name?: string
+  product_name?: string
   kind: USB4RouterKind
   parent_id?: string
   depth: number

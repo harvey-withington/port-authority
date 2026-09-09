@@ -1,16 +1,23 @@
 // Pure helpers over a Topology snapshot: naming and an id-keyed index.
-import type { Controller, Device, Port, Topology } from './api/types'
+import type { Controller, Device, Port, Topology, USB4Router } from './api/types'
 import { normalizeId } from './ids'
 import { t } from './i18n.svelte'
 import { hex4 } from './format'
 
 export interface DeviceRef {
-  device: Device
-  /** The hub port the device hangs off; null for a root hub. */
+  /** The device, for anything in a controller's hub tree. */
+  device?: Device
+  /**
+   * The USB4 router, for an entry that stands for one. Routers are on a
+   * separate bus with no hub port above them, so they are indexed for
+   * naming and focus only and carry no port, parent or controller.
+   */
+  router?: USB4Router
+  /** The hub port the device hangs off; null for a root hub or a router. */
   port: Port | null
-  /** Normalised id of the parent hub; null for a root hub. */
+  /** Normalised id of the parent hub; null for a root hub or a router. */
   parentId: string | null
-  controller: Controller
+  controller?: Controller
   depth: number
 }
 
@@ -28,6 +35,11 @@ export function indexTopology(topology: Topology | null): DeviceIndex {
   }
   for (const c of topology.controllers) {
     if (c.root_hub) visit(c, c.root_hub, null, null, 0)
+  }
+  // Routers too: an insight can name one, and a USB4 device that tunnels
+  // PCIe is only ever a router, so this is the only place it can be found.
+  for (const router of topology.usb4 ?? []) {
+    index.set(normalizeId(router.id), { router, port: null, parentId: null, depth: router.depth })
   }
   return index
 }
@@ -62,14 +74,33 @@ export function deviceName(d: Device): string {
   return `${vendor} ${product}`
 }
 
+/**
+ * Friendliest name for a USB4 router.
+ *
+ * A router announces the bridge silicon it is built on, so a USB4 SSD calls
+ * itself its controller chip. The knowledge base maps that back to the
+ * product, and the OS name is the fallback.
+ */
+export function routerName(router: USB4Router): string {
+  return router.product_name?.trim() || router.name
+}
+
+/** Name for whatever an index entry stands for. */
+export function refName(ref: DeviceRef): string {
+  if (ref.device) return deviceName(ref.device)
+  return ref.router ? routerName(ref.router) : ''
+}
+
 /** Name for an id, or null when the id is not in the snapshot. */
 export function nameForId(index: DeviceIndex, id: string): string | null {
   const ref = index.get(normalizeId(id))
-  return ref ? deviceName(ref.device) : null
+  return ref ? refName(ref) : null
 }
 
 export function countDevices(topology: Topology | null): number {
-  return indexTopology(topology).size
+  let n = 0
+  for (const ref of indexTopology(topology).values()) if (ref.device) n++
+  return n
 }
 
 export interface ChildEntry {

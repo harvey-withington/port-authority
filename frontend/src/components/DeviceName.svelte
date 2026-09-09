@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { DeviceIndex } from '../lib/topology'
-  import { deviceName } from '../lib/topology'
+  import { refName } from '../lib/topology'
   import { normalizeId } from '../lib/ids'
   import { classToken } from '../lib/colors'
   import { t } from '../lib/i18n.svelte'
@@ -18,8 +18,13 @@
   let { id, index, onFocus, fallback }: Props = $props()
 
   const ref = $derived(index.get(normalizeId(id)) ?? null)
-  const name = $derived(ref ? deviceName(ref.device) : (fallback ?? id))
-  const color = $derived(ref ? `var(--class-${classToken(ref.device.class)})` : 'var(--text-muted)')
+  const name = $derived(ref ? refName(ref) : (fallback ?? id))
+  // A router has no USB class; it takes the accent the diagram gives it.
+  const color = $derived(
+    ref?.device ? `var(--class-${classToken(ref.device.class)})`
+      : ref?.router ? 'var(--speed-usb4_40)'
+        : 'var(--text-muted)',
+  )
 </script>
 
 {#if ref && onFocus}

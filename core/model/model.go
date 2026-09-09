@@ -205,6 +205,12 @@ type USB4Router struct {
 	// to USB 3 and a USB4 identity when it tunnels PCIe.
 	VendorID  uint16 `json:"vendor_id"`
 	ProductID uint16 `json:"product_id"`
+	// VendorName / ProductName are resolved from the knowledge base, not
+	// from the router. A router reports the silicon it is built on, so a
+	// USB4 SSD announces its bridge chip rather than the product on the
+	// desk; the knowledge base maps the router id back to the product.
+	VendorName  string `json:"vendor_name,omitempty"`
+	ProductName string `json:"product_name,omitempty"`
 	// Kind is "host" for the router in the computer, "device" otherwise.
 	Kind string `json:"kind"`
 	// ParentID is the PnP parent: another router for device routers, the
@@ -282,6 +288,42 @@ type Device struct {
 	Children    []string     `json:"children,omitempty"`
 	TruthReport *TruthReport `json:"truth_report,omitempty"`
 	Hub         *Hub         `json:"hub,omitempty"`
+	// Enclosure is the physical box this hub lives in, filled by
+	// enrichment. Only hubs carry one; a leaf device belongs to whatever
+	// box its port is on.
+	Enclosure *Enclosure `json:"enclosure,omitempty"`
+}
+
+// EnclosureKind is what sort of box an Enclosure describes.
+type EnclosureKind string
+
+const (
+	// EnclosureHost is the computer itself: every controller and root hub.
+	EnclosureHost EnclosureKind = "host"
+	// EnclosureDock is a dock recognised in the knowledge base.
+	EnclosureDock EnclosureKind = "dock"
+	// EnclosureHub is any other box, i.e. a standalone hub.
+	EnclosureHub EnclosureKind = "hub"
+)
+
+// Enclosure is the physical box a set of logical hubs lives in.
+//
+// A dock reports its internals as a chain of four or five hubs, and a
+// laptop reports its own as several controllers and root hubs, but a
+// person sees one object with sockets on it. Hubs that share an Enclosure
+// ID are that one object, which is what lets the diagram draw the box
+// instead of the chain.
+type Enclosure struct {
+	// ID is unique per box within a snapshot, so two docks of the same
+	// model never merge into one.
+	ID   string        `json:"id"`
+	Kind EnclosureKind `json:"kind"`
+	// Name is the box's name when the knowledge base knows it, e.g.
+	// "CalDigit TS4". Empty for the host and for unrecognised hubs, which
+	// the UI names from the machine or the hub device itself.
+	Name string `json:"name,omitempty"`
+	// DockID is the knowledge-base dock entry this box matched.
+	DockID string `json:"dock_id,omitempty"`
 }
 
 // Interface is one USB interface descriptor, used to classify composite

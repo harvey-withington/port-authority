@@ -17,7 +17,7 @@
 </script>
 
 <div class="strip" style:width={`${SOCKET_STRIP_WIDTH}px`}>
-  {#each sockets as slot (slot.port.number)}
+  {#each sockets as slot (slot.key)}
     <span class="slot" style:top={`${slot.y}px`}>
       <PortSocket port={slot.port} occupied={slot.occupied} size={GLYPH_WIDTH} />
     </span>

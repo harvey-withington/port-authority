@@ -76,7 +76,7 @@ describe('TopologyGraph', () => {
   const quiet: TreeContext = { flagged: new Map(), throughput: emptyThroughput(), showMeter: false }
 
   it('draws a node per device, an edge per link, flow on busy links and pulses flagged devices', async () => {
-    const { container } = render(TopologyGraph, { topology: { ...topology, warnings: ['hub 3 would not open'] }, ctx: busy, loading: false })
+    const { container } = render(TopologyGraph, { topology: { ...topology, warnings: ['hub 3 would not open'] }, ctx: busy, loading: false, detail: 'logical' })
     await tick()
     expect(screen.getByText('Test xHCI')).toBeInTheDocument()
     expect(screen.getByText('Corsair EX400U')).toBeInTheDocument()
@@ -93,7 +93,7 @@ describe('TopologyGraph', () => {
   })
 
   it('draws a socket per visible port, including the empty one', async () => {
-    const { container } = render(TopologyGraph, { topology, ctx: quiet, loading: false })
+    const { container } = render(TopologyGraph, { topology, ctx: quiet, loading: false, detail: 'logical' })
     await tick()
     // Root hub: USB-C (dock), USB-A (mouse), empty USB-A. Dock hub: three ports.
     const visible = visiblePorts(root, topology).length + visiblePorts(dock, topology).length
@@ -105,7 +105,7 @@ describe('TopologyGraph', () => {
   })
 
   it('collapses a hub, hides its subtree and says how many devices are hidden', async () => {
-    const { container } = render(TopologyGraph, { topology, ctx: quiet, loading: false })
+    const { container } = render(TopologyGraph, { topology, ctx: quiet, loading: false, detail: 'logical' })
     await fireEvent.click(screen.getByLabelText('Collapse CalDigit TS4 USB3.2 Gen2 HUB'))
     expect(screen.queryByText('Corsair EX400U')).not.toBeInTheDocument()
     expect(screen.getByText('1 hidden')).toBeInTheDocument()
@@ -115,7 +115,7 @@ describe('TopologyGraph', () => {
   })
 
   it('zooms with the toolbar and returns to fit', async () => {
-    render(TopologyGraph, { topology, ctx: quiet, loading: false })
+    render(TopologyGraph, { topology, ctx: quiet, loading: false, detail: 'logical' })
     expect(screen.getByText('100%')).toBeInTheDocument()
     await fireEvent.click(screen.getByLabelText('Zoom in'))
     await fireEvent.click(screen.getByLabelText('Zoom in'))
@@ -127,10 +127,10 @@ describe('TopologyGraph', () => {
   })
 
   it('shows the loading and empty states', () => {
-    const { unmount } = render(TopologyGraph, { topology: null, ctx: quiet, loading: true })
+    const { unmount } = render(TopologyGraph, { topology: null, ctx: quiet, loading: true, detail: 'logical' })
     expect(screen.getByText('Reading the USB tree...')).toBeInTheDocument()
     unmount()
-    render(TopologyGraph, { topology: { ...topology, controllers: [] }, ctx: quiet, loading: false })
+    render(TopologyGraph, { topology: { ...topology, controllers: [] }, ctx: quiet, loading: false, detail: 'logical' })
     expect(screen.getByText('No USB controllers were found.')).toBeInTheDocument()
   })
 })

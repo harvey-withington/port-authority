@@ -4,6 +4,7 @@
   import { USB4_ROUTER_SPEED, speedColorVar } from '../lib/colors'
   import { linkLabel } from '../lib/format'
   import { t } from '../lib/i18n.svelte'
+  import { routerName } from '../lib/topology'
 
   interface Props {
     routers: USB4Router[]
@@ -29,7 +30,7 @@
           <div class="row">
             <span class="icon" style:color={color} aria-hidden="true"><Zap size={14} /></span>
             <div class="main">
-              <div class="name">{router.name}</div>
+              <div class="name">{routerName(router)}</div>
               <div class="meta">
                 <span>{t(`tree.usb4.${router.kind}`)}</span>
                 <span class="mono">{router.vendor_id.toString(16).padStart(4, '0')}:{router.product_id.toString(16).padStart(4, '0')}</span>

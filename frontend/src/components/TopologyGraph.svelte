@@ -3,8 +3,9 @@
   import { Maximize2, Minus, Plus } from 'lucide-svelte'
   import type { Topology } from '../lib/api/types'
   import type { TreeContext } from '../lib/tree'
-  import { layoutGraph } from '../lib/graph'
-  import { deviceName } from '../lib/topology'
+  import type { DetailLevel } from '../lib/view.svelte'
+  import { layoutGraph, layoutPhysical } from '../lib/graph'
+  import { deviceName, routerName } from '../lib/topology'
   import { expanded } from '../lib/expanded.svelte'
   import { observeWidth } from '../lib/actions'
   import { t } from '../lib/i18n.svelte'
@@ -16,9 +17,11 @@
     topology: Topology | null
     ctx: TreeContext
     loading: boolean
+    /** 'physical' draws the boxes on the desk, 'logical' every hub the OS reports. */
+    detail: DetailLevel
   }
 
-  let { topology, ctx, loading }: Props = $props()
+  let { topology, ctx, loading, detail }: Props = $props()
 
   const MIN_ZOOM = 0.5
   const MAX_ZOOM = 1.5
@@ -26,7 +29,7 @@
   /** How long a newly flagged device and its uplink pulse. */
   const PULSE_MS = 6_000
 
-  const layout = $derived(layoutGraph(topology, {
+  const layout = $derived((detail === 'physical' ? layoutPhysical : layoutGraph)(topology, {
     isExpanded: (id) => expanded.isExpanded(id),
     throughput: ctx.throughput,
   }))
@@ -36,8 +39,9 @@
     const n = nodeById.get(id)
     if (!n) return ''
     if (n.kind === 'controller') return n.controller?.name ?? ''
-    if (n.kind === 'router') return n.router?.name ?? ''
+    if (n.kind === 'router') return n.router ? routerName(n.router) : ''
     if (n.kind === 'carried') return n.label ?? ''
+    if (n.kind === 'box') return n.enclosure?.name || (n.device ? deviceName(n.device) : t('box.host'))
     return n.device ? deviceName(n.device) : ''
   }
 

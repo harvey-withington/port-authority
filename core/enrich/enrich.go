@@ -9,12 +9,15 @@ import (
 )
 
 // Annotate fills Device.VendorName and Device.ProductName from the usb.ids
-// knowledge base for every device with a non-zero ID. Existing non-empty
-// values are left untouched.
+// knowledge base for every device with a non-zero ID, and groups the logical
+// hubs into the physical boxes they live in. Existing non-empty values are
+// left untouched.
 func Annotate(t *model.Topology) {
 	if t == nil {
 		return
 	}
+	annotateEnclosures(t)
+	annotateRouters(t)
 	t.Walk(func(_ *model.Controller, _ *model.Device, _ *model.Port, d *model.Device) {
 		if d.VendorID == 0 {
 			return
@@ -55,6 +58,23 @@ func Annotate(t *model.Topology) {
 			}
 		}
 	})
+}
+
+// annotateRouters names the USB4 / Thunderbolt routers from the knowledge
+// base. A router identifies itself by the bridge silicon inside it, so
+// without this a USB4 SSD shows up as its controller chip rather than as
+// the drive the person plugged in.
+func annotateRouters(t *model.Topology) {
+	for i := range t.USB4 {
+		r := &t.USB4[i]
+		known, ok := kb.KnownDeviceByUSB4ID(r.VendorID, r.ProductID)
+		if !ok {
+			continue
+		}
+		if r.ProductName == "" {
+			r.ProductName = known.Name
+		}
+	}
 }
 
 func isVague(c model.DeviceClass) bool {

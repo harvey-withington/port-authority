@@ -3,23 +3,49 @@
 
 export type ConnectedView = 'graph' | 'tree'
 
+/**
+ * How much of the wiring the diagram spells out.
+ *
+ * 'physical' draws the boxes on the desk: the computer as one machine, a
+ * dock as one dock, one cable between them. 'logical' draws what the OS
+ * reports: every controller, every hub in a dock's internal chain, every
+ * device. Independent of ConnectedView so the choice survives a trip to
+ * the tree and back.
+ */
+export type DetailLevel = 'physical' | 'logical'
+
 const STORAGE_KEY = 'pa-connected-view'
+const DETAIL_KEY = 'pa-detail-level'
 const DEFAULT_VIEW: ConnectedView = 'graph'
+const DEFAULT_DETAIL: DetailLevel = 'physical'
 
 function isView(v: unknown): v is ConnectedView {
   return v === 'graph' || v === 'tree'
 }
 
-function load(): ConnectedView {
+function isDetail(v: unknown): v is DetailLevel {
+  return v === 'physical' || v === 'logical'
+}
+
+function load<T>(key: string, guard: (v: unknown) => v is T, fallback: T): T {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    return isView(raw) ? raw : DEFAULT_VIEW
+    const raw = localStorage.getItem(key)
+    return guard(raw) ? raw : fallback
   } catch {
-    return DEFAULT_VIEW
+    return fallback
   }
 }
 
-let current = $state<ConnectedView>(load())
+function save(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value)
+  } catch {
+    // Storage unavailable: the choice still holds for this session.
+  }
+}
+
+let current = $state<ConnectedView>(load(STORAGE_KEY, isView, DEFAULT_VIEW))
+let detail = $state<DetailLevel>(load(DETAIL_KEY, isDetail, DEFAULT_DETAIL))
 
 export const view = {
   get current(): ConnectedView {
@@ -27,10 +53,13 @@ export const view = {
   },
   set(next: ConnectedView): void {
     current = next
-    try {
-      localStorage.setItem(STORAGE_KEY, next)
-    } catch {
-      // Storage unavailable: the choice still holds for this session.
-    }
+    save(STORAGE_KEY, next)
+  },
+  get detail(): DetailLevel {
+    return detail
+  },
+  setDetail(next: DetailLevel): void {
+    detail = next
+    save(DETAIL_KEY, next)
   },
 }

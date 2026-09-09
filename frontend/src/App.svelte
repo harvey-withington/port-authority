@@ -18,6 +18,7 @@
   import ConnectionBanner from './components/ConnectionBanner.svelte'
   import StartingScreen from './components/StartingScreen.svelte'
   import ViewSwitch from './components/ViewSwitch.svelte'
+  import DetailSwitch from './components/DetailSwitch.svelte'
   import TopologyGraph from './components/TopologyGraph.svelte'
   import TopologyTree from './components/TopologyTree.svelte'
   import InsightList from './components/InsightList.svelte'
@@ -91,10 +92,15 @@
       <section class="pane" aria-labelledby="pane-connected">
         <div class="pane-head">
           <h2 id="pane-connected">{t('pane.connected')}</h2>
-          <ViewSwitch value={view.current} onChange={(next) => view.set(next)} />
+          <div class="switches">
+            {#if view.current === 'graph'}
+              <DetailSwitch value={view.detail} onChange={(next) => view.setDetail(next)} />
+            {/if}
+            <ViewSwitch value={view.current} onChange={(next) => view.set(next)} />
+          </div>
         </div>
         {#if view.current === 'graph'}
-          <TopologyGraph topology={live.topology} {ctx} loading={live.state === 'connecting'} />
+          <TopologyGraph topology={live.topology} {ctx} loading={live.state === 'connecting'} detail={view.detail} />
         {:else}
           <TopologyTree topology={live.topology} {ctx} loading={live.state === 'connecting'} />
         {/if}
@@ -161,6 +167,11 @@
   }
   .pane-head h2 {
     margin: 0;
+  }
+  .switches {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
   }
   .footer {
     display: flex;
