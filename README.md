@@ -6,7 +6,9 @@ The full spec is in [docs/port-authority-handoff.md](docs/port-authority-handoff
 
 ## Status
 
-Phase 0 (spike) is complete. The Windows hub IOCTL walk produces a JSON topology dump, and live per-device throughput via ETW is proven. See [docs/decisions/0001-live-throughput-and-elevation.md](docs/decisions/0001-live-throughput-and-elevation.md).
+**Beta.** The Windows collector, the insight engine, the local API and the desktop UI all work on real hardware. What is not settled is how much of a machine the data can actually describe — see [Known limitations](#known-limitations) before filing a bug, because the most surprising results are usually Windows telling us less than you would expect.
+
+Phase 0 (spike) is complete: the hub IOCTL walk produces a JSON topology dump, and live per-device throughput via ETW is proven. See [docs/decisions/0001-live-throughput-and-elevation.md](docs/decisions/0001-live-throughput-and-elevation.md).
 
 ```
 go run ./cmd/pactl tree            # human-readable tree of what is connected
@@ -44,7 +46,24 @@ cd frontend && npm run check && npm run test:run   # type-check and unit tests
 
 The frontend lives in [frontend/](frontend/); its shared components and colour tokens are documented in [frontend/UI-CONVENTIONS.md](frontend/UI-CONVENTIONS.md). Device classes and link speeds each have their own colour family, and link health (fine versus downgraded) is a separate ring so "how fast" and "is it right" never share a signal.
 
-The hero view is the topology diagram: controllers on the left, hubs and devices fanning out to the right, USB4 routers below. Line thickness is link capacity, colour (plus a dash pattern) is link health, and moving dashes show live transfers, with a hub's uplink carrying the sum of everything behind it. A device named by a new finding pulses. The tree view is one click away and shares the same collapse state.
+The hero view is the topology diagram: the computer on the left, everything plugged into it fanning out to the right. Line thickness is link capacity, colour (plus a dash pattern) is link health, and moving dashes show live transfers, with a hub's uplink carrying the sum of everything behind it. A device named by a new finding pulses. The tree view is one click away and shares the same collapse state.
+
+The diagram has two readings. **Physical** draws the boxes on your desk: the computer as one machine, a dock as one dock, one cable between them, with the sockets down each box's edge. **Logical** draws what Windows reports: every controller, every hub inside a dock, every device. A dock is four or five hubs across two controllers to Windows and one object to you, so the two views disagree on purpose.
+
+## Known limitations
+
+The app reports what Windows tells it, and Windows does not always know. These are limits of the available data rather than bugs, so they are worth recognising before filing one.
+
+- **An occupied USB-C socket can read as empty.** A USB-PD charger is not a USB data device, so it never reaches the USB tree at all. A USB4 drive tunnels PCIe and so appears only as a Thunderbolt router, with nothing in a snapshot tying it to the connector it arrived on. Both need connector-level (UCSI) data the collector does not gather yet.
+- **A USB4 dock can appear twice**, once as a box of hubs and once as a Thunderbolt router. A router identifies itself in a different namespace from its hubs, and only the knowledge base can bridge the two; adding the router id to `docks.json` fixes it for that model.
+- **Socket counts can be too high.** Windows reports one port per USB 2 / USB 3 half of a physical socket and only sometimes says which two halves pair up. Where it does not say, both are counted.
+- **A hub with two chips inside can draw as two boxes.** Only the firmware knows which of its ports reach the outside world, and cheap hubs mark every port as user-connectable. Recognised docks are folded using `docks.json`; anything else is left as reported rather than guessed at.
+
+The rule throughout is that the provider observes and never invents: where the data cannot distinguish two situations, the app shows what it measured instead of picking the prettier answer.
+
+## Security
+
+The API binds to loopback only, and browsers are held to this app's own origins, so a web page you happen to have open cannot read your device list over HTTP or the WebSocket stream. There is no authentication yet, so any program running as you on this machine can read it; token auth is still to come. A snapshot names every attached device and, unless you scrub it, their serial numbers — worth remembering before sharing one.
 
 ## Layout
 

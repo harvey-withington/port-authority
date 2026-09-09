@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -175,15 +176,46 @@ func writeError(w http.ResponseWriter, status int, msg string) {
 	_, _ = w.Write(append(body, '\n'))
 }
 
-// cors allows any origin for now. The server is loopback-only and
-// token auth arrives in Phase 4, at which point this tightens.
+// OriginAllowed reports whether a browser at this origin may read the API.
+//
+// A snapshot names every device attached to the machine, with serial
+// numbers and PnP instance ids: a stable hardware fingerprint. Binding to
+// loopback does not keep that away from the web, because any page the user
+// happens to be visiting can ask a loopback address for it. So only the
+// origins that are actually part of this app may read it:
+//
+//   - wails.localhost, which is where Wails serves the app window from
+//   - loopback, which covers `wails dev`, `vite preview` and opening the
+//     UI in a browser against a `pactl serve`
+//
+// Anything else gets no CORS header at all, so the browser refuses to hand
+// over the response. A request with no Origin is not from a browser and is
+// left alone; this is a defence against web pages, not against local
+// programs, which need the token auth that is still to come.
+func OriginAllowed(origin string) bool {
+	u, err := url.Parse(origin)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
+		return false
+	}
+	switch strings.ToLower(u.Hostname()) {
+	case "wails.localhost", "localhost", "127.0.0.1", "::1":
+		return true
+	}
+	return false
+}
+
 func cors(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
-		h.Set("Access-Control-Allow-Origin", "*")
-		h.Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-		h.Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		h.Set("Access-Control-Max-Age", "600")
+		// The response differs per origin, so it must never be reused for
+		// another one.
+		h.Add("Vary", "Origin")
+		if origin := r.Header.Get("Origin"); origin != "" && OriginAllowed(origin) {
+			h.Set("Access-Control-Allow-Origin", origin)
+			h.Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+			h.Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			h.Set("Access-Control-Max-Age", "600")
+		}
 		if r.Method == http.MethodOptions {
 			h.Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusNoContent)

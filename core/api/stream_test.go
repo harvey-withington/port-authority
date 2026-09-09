@@ -860,3 +860,49 @@ func TestIncompleteSnapshotIsNotCachedForTheFullTTL(t *testing.T) {
 		t.Error("still serving the partial snapshot after its short TTL")
 	}
 }
+
+// WebSockets are not covered by CORS, so the handshake's Origin check is
+// the only thing between a web page and the live event stream. A page on
+// any site could otherwise open one and watch every device the user plugs
+// in.
+func TestStreamRefusesForeignOrigins(t *testing.T) {
+	srv := newFixtureServer(t)
+
+	dial := func(origin string) (*websocket.Conn, int, error) {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		u := "ws" + strings.TrimPrefix(srv.URL, "http") + "/api/v1/stream"
+		var opts *websocket.DialOptions
+		if origin != "" {
+			opts = &websocket.DialOptions{HTTPHeader: http.Header{"Origin": []string{origin}}}
+		}
+		c, resp, err := websocket.Dial(ctx, u, opts)
+		status := 0
+		if resp != nil {
+			status = resp.StatusCode
+		}
+		return c, status, err
+	}
+
+	for _, origin := range []string{"https://evil.example.com", "http://wails.localhost.evil.com", "http://localhost.evil.com"} {
+		c, status, err := dial(origin)
+		if err == nil {
+			c.CloseNow()
+			t.Errorf("origin %s: handshake succeeded, want it refused", origin)
+			continue
+		}
+		if status != http.StatusForbidden {
+			t.Errorf("origin %s: status %d, want 403", origin, status)
+		}
+	}
+
+	// The app's own window, and non-browser clients that send no Origin.
+	for _, origin := range []string{"http://wails.localhost", "http://localhost:4173", ""} {
+		c, status, err := dial(origin)
+		if err != nil {
+			t.Errorf("origin %q: handshake refused (%v, status %d), want accepted", origin, err, status)
+			continue
+		}
+		c.CloseNow()
+	}
+}

@@ -26,6 +26,9 @@ const (
 	ex400uRule  = "faster-port-available"
 )
 
+// appOrigin is where Wails serves the app window from.
+const appOrigin = "http://wails.localhost"
+
 func newFixtureServer(t *testing.T, opts ...Option) *httptest.Server {
 	t.Helper()
 	p, err := mock.Load(fixturePath)
@@ -41,7 +44,14 @@ func newFixtureServer(t *testing.T, opts ...Option) *httptest.Server {
 // body into out.
 func get(t *testing.T, srv *httptest.Server, path string, wantStatus int, out any) {
 	t.Helper()
-	resp, err := http.Get(srv.URL + path)
+	req, err := http.NewRequest(http.MethodGet, srv.URL+path, nil)
+	if err != nil {
+		t.Fatalf("GET %s: %v", path, err)
+	}
+	// Ask as the app's own window does, so every endpoint is covered by
+	// the origin allow-list and not just the CORS tests.
+	req.Header.Set("Origin", appOrigin)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		t.Fatalf("GET %s: %v", path, err)
 	}
@@ -53,8 +63,8 @@ func get(t *testing.T, srv *httptest.Server, path string, wantStatus int, out an
 	if ct := resp.Header.Get("Content-Type"); ct != "application/json" {
 		t.Errorf("GET %s: Content-Type %q, want application/json", path, ct)
 	}
-	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != "*" {
-		t.Errorf("GET %s: Access-Control-Allow-Origin %q, want *", path, got)
+	if got := resp.Header.Get("Access-Control-Allow-Origin"); got != appOrigin {
+		t.Errorf("GET %s: Access-Control-Allow-Origin %q, want %q", path, got, appOrigin)
 	}
 	if out != nil {
 		if err := json.Unmarshal(body, out); err != nil {
@@ -208,7 +218,7 @@ func TestUnknownEndpointAndMethod(t *testing.T) {
 func TestOptionsPreflight(t *testing.T) {
 	srv := newFixtureServer(t)
 	req, _ := http.NewRequest(http.MethodOptions, srv.URL+"/api/v1/topology", nil)
-	req.Header.Set("Origin", "http://example.test")
+	req.Header.Set("Origin", appOrigin)
 	req.Header.Set("Access-Control-Request-Method", "GET")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -218,11 +228,25 @@ func TestOptionsPreflight(t *testing.T) {
 	if resp.StatusCode != http.StatusNoContent {
 		t.Errorf("OPTIONS status = %d, want 204", resp.StatusCode)
 	}
-	if resp.Header.Get("Access-Control-Allow-Origin") != "*" {
+	if resp.Header.Get("Access-Control-Allow-Origin") != appOrigin {
 		t.Error("preflight lacks Access-Control-Allow-Origin")
 	}
 	if !strings.Contains(resp.Header.Get("Access-Control-Allow-Methods"), "GET") {
 		t.Error("preflight lacks Access-Control-Allow-Methods GET")
+	}
+
+	// A preflight from anywhere else is answered, but without the headers
+	// that would let the browser follow through.
+	req, _ = http.NewRequest(http.MethodOptions, srv.URL+"/api/v1/topology", nil)
+	req.Header.Set("Origin", "https://evil.example.com")
+	req.Header.Set("Access-Control-Request-Method", "GET")
+	denied, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer denied.Body.Close()
+	if got := denied.Header.Get("Access-Control-Allow-Origin"); got != "" {
+		t.Errorf("preflight from a foreign origin returned Access-Control-Allow-Origin %q, want none", got)
 	}
 }
 
@@ -360,4 +384,110 @@ func TestListenAndServeShutsDownOnCancel(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("ListenAndServe did not return after ctx cancel")
 	}
+}
+
+// A snapshot is a hardware fingerprint: every attached device, its serial
+// number and its PnP instance id. Binding to loopback does not keep that
+// away from the web, because any page the user is visiting can ask a
+// loopback address for it. Only this app's own origins may read it.
+func TestCORSOnlyAnswersThisAppsOrigins(t *testing.T) {
+	srv := newFixtureServer(t)
+
+	allowed := []string{
+		"http://wails.localhost",
+		"http://localhost:4173",
+		"http://127.0.0.1:7911",
+		"https://localhost:5173",
+	}
+	for _, origin := range allowed {
+		res := getWithOrigin(t, srv.URL+"/api/v1/topology", origin)
+		if got := res.Header.Get("Access-Control-Allow-Origin"); got != origin {
+			t.Errorf("origin %s: Access-Control-Allow-Origin = %q, want %q", origin, got, origin)
+		}
+		res.Body.Close()
+	}
+
+	// Any website the user happens to have open, including ones that only
+	// look like the real thing.
+	denied := []string{
+		"https://evil.example.com",
+		"http://wails.localhost.evil.com",
+		"http://notlocalhost",
+		"http://127.0.0.1.evil.com",
+		"file://",
+		"null",
+	}
+	for _, origin := range denied {
+		res := getWithOrigin(t, srv.URL+"/api/v1/topology", origin)
+		if got := res.Header.Get("Access-Control-Allow-Origin"); got != "" {
+			t.Errorf("origin %s: Access-Control-Allow-Origin = %q, want none", origin, got)
+		}
+		res.Body.Close()
+	}
+}
+
+// A wildcard would let one cached response be replayed to another origin.
+func TestCORSVariesOnOrigin(t *testing.T) {
+	srv := newFixtureServer(t)
+
+	res := getWithOrigin(t, srv.URL+"/api/v1/topology", "http://wails.localhost")
+	defer res.Body.Close()
+	if vary := res.Header.Get("Vary"); !strings.Contains(vary, "Origin") {
+		t.Errorf("Vary = %q, want it to include Origin", vary)
+	}
+}
+
+// Anything that is not a browser sends no Origin and must keep working:
+// this is a defence against web pages, not against local tools.
+func TestRequestWithNoOriginStillWorks(t *testing.T) {
+	srv := newFixtureServer(t)
+
+	res, err := http.Get(srv.URL + "/api/v1/topology")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want 200", res.StatusCode)
+	}
+	if got := res.Header.Get("Access-Control-Allow-Origin"); got != "" {
+		t.Errorf("Access-Control-Allow-Origin = %q, want none when no Origin was sent", got)
+	}
+}
+
+func TestOriginAllowed(t *testing.T) {
+	for _, c := range []struct {
+		origin string
+		want   bool
+	}{
+		{"http://wails.localhost", true},
+		{"http://localhost:5173", true},
+		{"http://127.0.0.1:7911", true},
+		{"http://[::1]:7911", true},
+		{"https://evil.example.com", false},
+		{"http://wails.localhost.evil.com", false},
+		{"http://localhost.evil.com", false},
+		{"", false},
+		{"null", false},
+		{"file:///etc/passwd", false},
+		{"ftp://localhost", false},
+	} {
+		if got := OriginAllowed(c.origin); got != c.want {
+			t.Errorf("OriginAllowed(%q) = %v, want %v", c.origin, got, c.want)
+		}
+	}
+}
+
+func getWithOrigin(t *testing.T, url, origin string) *http.Response {
+	t.Helper()
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Origin", origin)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return res
 }
