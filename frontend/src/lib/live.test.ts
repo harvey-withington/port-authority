@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createLive, type LiveStore, type WebSocketLike } from './live.svelte'
 import type { ProviderCaps, StreamEvent, TopologyResponse } from './api/types'
-import { insight, sampleTopology } from './fixtures.test-helpers'
+import { device, insight, sampleTopology } from './fixtures.test-helpers'
 
 const caps: ProviderCaps = {
   platform: 'test', topology: true, hotplug: true, throughput: true, alt_mode: false,
@@ -187,6 +187,60 @@ describe('live store', () => {
 
     ws.send({ type: 'throughput_sample', at, data: { device_id: 'USB\\VID_1B1C&PID_1A20\\SSD', at, read_bps: 8_000_000, write_bps: 0 } })
     expect(h.store.throughput.get('USB\\VID_1B1C&PID_1A20\\SSD')?.sample.read_bps).toBe(8_000_000)
+  })
+
+  // A dock arriving fires several topology_changed events in a row, so
+  // several /topology fetches are in flight at once on different
+  // connections. They can complete in any order, and an early response
+  // landing last would put the UI back on the machine as it was before the
+  // dock: the diagram stops showing devices whose arrival is in the log.
+  it('ignores a topology response overtaken by a newer one', async () => {
+    const beforeDock = sampleTopology()
+    const afterDock = sampleTopology()
+    // Something only the later snapshot has, standing in for the dock.
+    afterDock.controllers[0].root_hub!.hub!.ports![2].device = device({
+      id: 'USB\VID_2109&PID_0822\HUB', class: 'hub', vendor_name: 'VIA Labs, Inc.', product_name: 'USB3.1 Hub',
+    })
+
+    // The first fetch is slow, the second fast, so the first lands last.
+    const release: Array<() => void> = []
+    let call = 0
+    h.fetchMock.mockImplementation(async (url: string): Promise<Response> => {
+      if (url.endsWith('/capabilities')) return reply({ schema_version: 1, capabilities: caps })
+      if (!url.endsWith('/topology')) return reply({ schema_version: 1, window_seconds: 5, samples: [] })
+      const n = call++
+      const body: TopologyResponse = {
+        schema_version: 1, captured_at: at, insights: [],
+        topology: n === 0 ? beforeDock : afterDock,
+      }
+      if (n === 0) {
+        await new Promise<void>((resolve) => release.push(resolve))
+      }
+      return reply(body)
+    })
+
+    h.store.start()
+    await h.flush()
+    const ws = h.sockets[0]
+    ws.open()
+
+    const changed = {
+      type: 'topology_changed' as const, at,
+      data: { events: [{ kind: 'device_added' as const, at, device_id: 'usb\vid_2109&pid_0822\hub' }], captured_at: at, fetched_at: at, controllers: 1, devices: 5 },
+    }
+    ws.send(changed)   // starts the slow first fetch
+    await h.flush()
+    ws.send(changed)   // starts the fast second fetch
+    await h.flush()
+
+    // The newer snapshot is on screen.
+    const hasHub = (): boolean => h.store.topology?.controllers[0].root_hub?.hub?.ports?.[2].device !== undefined
+    expect(hasHub()).toBe(true)
+
+    // Now the older response finally arrives. It must not win.
+    release.forEach((fn) => fn())
+    await h.flush()
+    expect(hasHub()).toBe(true)
   })
 
   it('decays throughput to idle after three seconds without samples', async () => {

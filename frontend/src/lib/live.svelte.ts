@@ -91,6 +91,8 @@ export function createLive(apiBase: string, streamUrl: string, deps: LiveDeps = 
   let capturedAt = $state.raw<string | null>(null)
 
   let running = false
+  /** Increments per /topology request, so a stale response can be ignored. */
+  let topologyRequest = 0
   let socket: WebSocketLike | null = null
   let attempt = 0
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
@@ -116,9 +118,14 @@ export function createLive(apiBase: string, streamUrl: string, deps: LiveDeps = 
 
   /** Fetches /topology; returns true on success. Errors are surfaced, never swallowed. */
   const refreshTopology = async (): Promise<boolean> => {
+    // A burst of hotplug events starts several of these at once. Responses
+    // can land out of order, and an older one must not overwrite a newer
+    // snapshot: that would leave the UI on a half-connected dock.
+    const request = ++topologyRequest
     try {
       const res = await client.topology()
       if (!running) return false
+      if (request !== topologyRequest) return true
       applyTopology(res.topology, res.insights ?? [], res.captured_at)
       error = null
       return true

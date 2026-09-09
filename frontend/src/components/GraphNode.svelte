@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ChevronDown, ChevronRight, Cpu, Dock, HardDrive, Laptop, TriangleAlert, Zap } from 'lucide-svelte'
+  import { ChevronDown, ChevronRight, Cpu, Dock, HardDrive, Laptop, LoaderCircle, TriangleAlert, Zap } from 'lucide-svelte'
   import type { GraphNode } from '../lib/graph'
   import type { Severity } from '../lib/api/types'
   import type { TreeContext } from '../lib/tree'
@@ -132,6 +132,11 @@
       {#if severity}
         <span class="flag sev-{severity}" title={t('tree.flagged')}><TriangleAlert size={13} aria-label={t('tree.flagged')} /></span>
       {/if}
+      {#if node.incomplete}
+        <span class="partial" title={t('graph.incomplete.hint')}>
+          <LoaderCircle size={13} aria-label={t('graph.incomplete')} />
+        </span>
+      {/if}
     </div>
     <div class="meta">
       {#if node.kind === 'controller' && node.controller}
@@ -148,7 +153,7 @@
         {:else if members.length > 1}
           <span>{t('box.folded', { n: members.length })}</span>
         {/if}
-        <span>{t('box.sockets', { used: usedSockets, total: portTotal })}</span>
+        <span>{node.incomplete ? t('box.sockets.partial', { used: usedSockets }) : t('box.sockets', { used: usedSockets, total: portTotal })}</span>
       {:else if device}
         {#if node.port}<span>{t('tree.port', { n: node.port.number })}</span>{/if}
         {#if device.hub}<span>{t('tree.hub.ports', { used: childCount, total: device.hub.port_count })}</span>{/if}
@@ -269,9 +274,18 @@
     min-width: 0;
   }
   .badge,
-  .flag {
+  .flag,
+  .partial {
     display: inline-flex;
     flex-shrink: 0;
+  }
+  /* Still being read: spins until the retry fills the rest in. */
+  .partial {
+    color: var(--text-muted);
+    animation: spin 1.4s linear infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
   }
   /* Says the box came from the knowledge base rather than from the bus. */
   .tag {
@@ -337,6 +351,7 @@
   @media (prefers-reduced-motion: reduce) {
     .node,
     .node.pulse,
+    .partial,
     .traffic .fill {
       animation: none;
       transition: none;

@@ -52,7 +52,10 @@ export function indexHubPaths(topology: Topology | null): HubPathIndex {
     const hub = device.hub
     if (!hub) return
     if (hub.device_path) index.set(normalizeHubPath(hub.device_path), device)
-    for (const port of hub.ports) {
+    // A hub the collector could not open has no port list at all, which
+    // arrives as null rather than an empty array. It is still worth
+    // indexing: something else may name it as its companion.
+    for (const port of hub.ports ?? []) {
       if (port.device) visit(port.device)
     }
   }
@@ -68,7 +71,7 @@ export function companionPort(port: Port, index: HubPathIndex): Port | null {
   if (!connector?.companion_hub_path || connector.companion_port === undefined) return null
   const hub = index.get(normalizeHubPath(connector.companion_hub_path))?.hub
   if (!hub) return null
-  return hub.ports.find((p) => p.number === connector.companion_port) ?? null
+  return (hub.ports ?? []).find((p) => p.number === connector.companion_port) ?? null
 }
 
 /**

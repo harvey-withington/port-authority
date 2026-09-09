@@ -130,6 +130,21 @@ describe('buildPhysical', () => {
     expect(internalAt).toBe(host.sockets.length - 1)
   })
 
+  it('marks a box whose hub could not be read to the end', () => {
+    // What the Windows collector produces when a hub will not open: the
+    // hub is in the tree, its ports are not. Drawing that as an empty box
+    // would claim nothing is plugged in, which is not what was measured.
+    const half = device({
+      id: 'USB\HALF', class: 'hub', enclosure: { id: 'hub:half', kind: 'hub' },
+      hub: hub([], { incomplete: true }),
+    })
+    const root = device({ id: 'USB\ROOT', class: 'hub', enclosure: HOST, hub: hub([port(1, half)], { kind: 'root', depth: 0 }) })
+    const roots = buildPhysical(topology([controller(root)]))
+
+    expect(findNode(roots, 'hub:half')?.incomplete).toBe(true)
+    expect(roots[0].incomplete).toBe(false)
+  })
+
   it('returns nothing for an empty snapshot', () => {
     expect(buildPhysical(null)).toEqual([])
   })

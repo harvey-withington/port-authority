@@ -159,6 +159,10 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+	// Every endpoint reports the machine as it is right now, so a cached
+	// copy is always wrong. Without this a browser is free to serve a
+	// heuristically cached body and the UI stops seeing changes.
+	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	_, _ = w.Write(buf.Bytes())
 }
@@ -166,6 +170,7 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 func writeError(w http.ResponseWriter, status int, msg string) {
 	body, _ := json.Marshal(map[string]string{"error": msg})
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
 	w.WriteHeader(status)
 	_, _ = w.Write(append(body, '\n'))
 }

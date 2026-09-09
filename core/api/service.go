@@ -27,6 +27,12 @@ const SchemaVersion = model.SchemaVersion
 // caller waiting on it.
 const snapshotTimeout = 30 * time.Second
 
+// incompleteTTL is how long an incomplete snapshot may be served from
+// cache. A hub that is still enumerating cannot be opened, so a snapshot
+// taken mid-plug is missing part of the tree; holding that for the full
+// TTL would leave a dock half-drawn long after it settled.
+const incompleteTTL = time.Second
+
 // Annotated is a topology after knowledge-base enrichment, together with
 // the insights evaluated against it. Instances are shared between callers
 // of Service.Snapshot and must be treated as read-only.
@@ -37,6 +43,10 @@ type Annotated struct {
 	// topology's own CapturedAt is what the provider reports and may be
 	// older when replaying a fixture.
 	FetchedAt time.Time
+	// Incomplete is true when any hub in the topology could not be read.
+	// Such a snapshot is a partial picture of the machine and is worth
+	// taking again shortly rather than trusting for the full cache TTL.
+	Incomplete bool
 }
 
 // Service produces annotated snapshots on demand and caches them.
@@ -113,7 +123,7 @@ func (s *Service) Capabilities() model.ProviderCaps {
 // its result. The returned value is shared and must not be mutated.
 func (s *Service) Snapshot(ctx context.Context) (*Annotated, error) {
 	s.mu.Lock()
-	if a := s.cached; a != nil && time.Since(a.FetchedAt) < s.ttl {
+	if a := s.cached; a != nil && time.Since(a.FetchedAt) < a.ttl(s.ttl) {
 		s.mu.Unlock()
 		return a, nil
 	}
@@ -144,9 +154,10 @@ func (s *Service) run(ctx context.Context, c *call) {
 	if err == nil {
 		enrich.Annotate(t)
 		c.res = &Annotated{
-			Topology:  t,
-			Insights:  insight.Evaluate(t),
-			FetchedAt: fetched,
+			Topology:   t,
+			Insights:   insight.Evaluate(t),
+			FetchedAt:  fetched,
+			Incomplete: hasIncompleteHub(t),
 		}
 	} else {
 		c.err = err
@@ -159,6 +170,30 @@ func (s *Service) run(ctx context.Context, c *call) {
 	}
 	s.mu.Unlock()
 	close(c.done)
+}
+
+// ttl is how long this snapshot may be served from cache: the full TTL
+// normally, a short one when it is only a partial picture.
+func (a *Annotated) ttl(full time.Duration) time.Duration {
+	if a.Incomplete && incompleteTTL < full {
+		return incompleteTTL
+	}
+	return full
+}
+
+// hasIncompleteHub reports whether any hub in the topology could not be
+// read to the end.
+func hasIncompleteHub(t *model.Topology) bool {
+	if t == nil {
+		return false
+	}
+	found := false
+	t.Walk(func(_ *model.Controller, _ *model.Device, _ *model.Port, d *model.Device) {
+		if d.Hub != nil && d.Hub.Incomplete {
+			found = true
+		}
+	})
+	return found
 }
 
 func (c *call) wait(ctx context.Context) (*Annotated, error) {

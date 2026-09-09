@@ -309,16 +309,78 @@ func TestEnclosureKeepsHubsApartWhenTheFirmwareClaimsEveryPortIsASocket(t *testi
 	}
 }
 
-func TestEnclosureFoldsAHubSolderedInsideTheComputer(t *testing.T) {
-	// The same rule on a root hub: a hub on a port that is not a socket is
-	// inside the chassis, so it belongs to the computer.
+func TestEnclosureNeverAbsorbsAHubThroughARootHubPort(t *testing.T) {
+	// The computer's own port table is the one known to be wrong, and a
+	// dock plugged into a port it mislabels as internal would vanish into
+	// "this computer". A hub reached through a root hub therefore always
+	// stays a box of its own, even when the firmware calls the port
+	// internal. The cost is that a hub genuinely soldered to the board
+	// draws separately, which is only cosmetic.
 	onboard := hub("onboard", 0x2109, 0x0822)
 	root := hub("root", 0, 0)
 	root.Hub.Ports = []model.Port{internalPort(1, onboard), socketPort(2, nil)}
 	topo := &model.Topology{Controllers: []model.Controller{{ID: "c1", RootHub: root}}}
 	Annotate(topo)
 
-	if got := encOf(t, topo, "onboard"); got != "host" {
-		t.Errorf("onboard hub enclosure = %q, want host", got)
+	if got := encOf(t, topo, "onboard"); got != "hub:onboard" {
+		t.Errorf("enclosure = %q, want hub:onboard", got)
+	}
+}
+
+func TestEnclosureNeverAbsorbsAKnownDock(t *testing.T) {
+	// A dock is a box someone plugged in, so it can never be wiring inside
+	// another box however its uplink port is labelled. This is the shape
+	// that made a whole CalDigit TS4 disappear into the computer.
+	inner := hub("dock-inner", ts4Vendor, ts4USB3Mid)
+	dock := hub("dock-top", ts4Vendor, ts4USB3Top, inner)
+	feeder := &model.Device{ID: "feeder", VendorID: 0x2109, ProductID: 0x0822,
+		Hub: &model.Hub{PortCount: 2, Ports: []model.Port{internalPort(1, dock)}}}
+	root := hub("root", 0, 0)
+	root.Hub.Ports = []model.Port{socketPort(1, feeder)}
+	topo := &model.Topology{Controllers: []model.Controller{{ID: "c1", RootHub: root}}}
+	Annotate(topo)
+
+	got := encOf(t, topo, "dock-top")
+	if got != "dock:caldigit-ts4:1" {
+		t.Fatalf("dock enclosure = %q, want dock:caldigit-ts4:1", got)
+	}
+	if got == encOf(t, topo, "feeder") {
+		t.Error("the dock was absorbed into the hub above it")
+	}
+}
+
+// The regression itself: on a machine whose firmware marks its own ports
+// as not user connectable, a dock plugged into one must still be a dock.
+func TestEnclosureKeepsTheDockWhenEveryRootPortClaimsToBeInternal(t *testing.T) {
+	raw, err := os.ReadFile("../../testdata/fixtures/deviant-caldigit-ts4.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var topo model.Topology
+	if err := json.Unmarshal(raw, &topo); err != nil {
+		t.Fatal(err)
+	}
+	for i := range topo.Controllers {
+		root := topo.Controllers[i].RootHub
+		if root == nil || root.Hub == nil {
+			continue
+		}
+		for j := range root.Hub.Ports {
+			root.Hub.Ports[j].Connector = &model.Connector{UserConnectable: false}
+		}
+	}
+	Annotate(&topo)
+
+	boxes := map[string]int{}
+	topo.Walk(func(_ *model.Controller, _ *model.Device, _ *model.Port, d *model.Device) {
+		if d.Hub != nil && d.Enclosure != nil {
+			boxes[d.Enclosure.ID]++
+		}
+	})
+	if boxes["dock:caldigit-ts4:1"] != 8 {
+		t.Errorf("boxes = %v, want the dock still holding its 8 hubs", boxes)
+	}
+	if boxes["host"] != 2 {
+		t.Errorf("host holds %d hubs, want the 2 root hubs", boxes["host"])
 	}
 }

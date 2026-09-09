@@ -25,7 +25,7 @@ const index = indexTopology(topology)
 const finding = insight()
 const root = topology.controllers[0].root_hub
 if (!root) throw new Error('fixture has no root hub')
-const dock = root.hub?.ports[0].device
+const dock = root.hub?.ports?.[0].device
 if (!dock) throw new Error('fixture has no dock')
 
 describe('TopologyTree', () => {

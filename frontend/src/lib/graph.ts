@@ -87,6 +87,8 @@ export interface GraphNode {
   sockets: SocketSlot[]
   /** Descendants not drawn because this hub is collapsed. */
   hiddenCount: number
+  /** A hub here could not be read to the end, so its ports are unknown. */
+  incomplete?: boolean
   /** Bits per second through this node's uplink: its own sample, or the sum of its subtree. */
   bps: number
 }
@@ -386,6 +388,7 @@ export function layoutGraph(topology: Topology | null, opts: GraphOptions): Grap
     node.device = device
     node.port = port
     node.hiddenCount = open ? 0 : descendantCount(device)
+    node.incomplete = device.hub?.incomplete === true
     node.bps = subtreeBps(device, opts.throughput)
     attachSockets(node, topology, hubs)
     const children = open
@@ -408,6 +411,7 @@ export function layoutGraph(topology: Topology | null, opts: GraphOptions): Grap
     node.device = root ?? undefined
     node.port = null
     node.bps = root ? subtreeBps(root, opts.throughput) : 0
+    node.incomplete = root?.hub?.incomplete === true
     attachSockets(node, topology, hubs)
     const children = (root ? childEntries(root) : []).map((c) => ({
       item: buildDevice(c.device, c.port),
@@ -455,6 +459,7 @@ export function layoutPhysical(topology: Topology | null, opts: GraphOptions): G
     node.bps = physicalBps(physical, opts.throughput)
     if (isBox) {
       node.enclosure = physical.enclosure
+      node.incomplete = physical.incomplete
       node.members = physical.members.map((m) => normalizeId(m.id))
       // The first member is the box's uplink hub: the one whose name and
       // class stand in for the box when the knowledge base has no name.

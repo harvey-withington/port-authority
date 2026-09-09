@@ -31,6 +31,29 @@ type fakeProvider struct {
 	// watchErr / throughputErr override ErrUnsupported when set.
 	watchErr, throughputErr error
 	snapshots               int
+	// snapshotDelay simulates the seconds a real snapshot of a busy dock
+	// takes, so a test can send events while one is in flight.
+	snapshotDelay time.Duration
+	// dropping makes Watch behave like the Windows provider: a small
+	// buffer and a non-blocking send, so a consumer that is not receiving
+	// loses events instead of stalling the producer.
+	dropping bool
+	out      chan model.TopologyEvent
+}
+
+// emit delivers one event the way the PnP callback does, dropping it if
+// the consumer is not keeping up. The lock is held across the send so it
+// cannot race the close when the watch ends.
+func (f *fakeProvider) emit(ev model.TopologyEvent) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.out == nil {
+		return
+	}
+	select {
+	case f.out <- ev:
+	default:
+	}
 }
 
 func newFakeProvider(t *testing.T, topo *model.Topology) *fakeProvider {
@@ -52,7 +75,15 @@ func (f *fakeProvider) Snapshot(ctx context.Context) (*model.Topology, error) {
 	f.mu.Lock()
 	topo := f.topo
 	f.snapshots++
+	delay := f.snapshotDelay
 	f.mu.Unlock()
+	if delay > 0 {
+		select {
+		case <-time.After(delay):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
 	return mock.New(topo).Snapshot(ctx)
 }
 
@@ -65,6 +96,21 @@ func (f *fakeProvider) Watch(ctx context.Context) (<-chan model.TopologyEvent, e
 	}
 	if f.events == nil {
 		return nil, provider.ErrUnsupported
+	}
+	if f.dropping {
+		out := make(chan model.TopologyEvent, 8)
+		f.mu.Lock()
+		f.out = out
+		f.mu.Unlock()
+		// The stream contract: the channel closes once ctx is cancelled.
+		go func() {
+			<-ctx.Done()
+			f.mu.Lock()
+			f.out = nil
+			f.mu.Unlock()
+			close(out)
+		}()
+		return out, nil
 	}
 	out := make(chan model.TopologyEvent, 16)
 	go forwardUntilDone(ctx, f.events, out)
@@ -651,4 +697,166 @@ func contains(list []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// The real hotplug source drops events it cannot hand over rather than
+// stalling the PnP manager's thread (platform/win/hotplug.go). A Run loop
+// that takes its snapshot inline stops receiving for as long as that
+// snapshot takes, which on a busy dock is seconds, and everything that
+// arrives meanwhile past the provider's buffer is lost for good.
+//
+// Losing events is not always visible, because the next refresh snapshots
+// the machine as it is by then. It becomes visible when the events lost
+// are the last ones: nothing is left to prompt a refresh, and the UI sits
+// on a half-connected dock. So the property worth holding is the strong
+// one: no hotplug event is lost while a snapshot is in flight.
+func TestRunLosesNoEventsDuringASnapshot(t *testing.T) {
+	const burst = 20
+
+	withSSD, _ := fixtureVariants(t)
+	fp := newFakeProvider(t, withSSD)
+	// Deliver like the real provider: a small buffer and a non-blocking
+	// send, so a loop that is not receiving loses events for good.
+	fp.dropping = true
+	svc := NewService(fp)
+	events, unsub := svc.Subscribe()
+	defer unsub()
+	stop := startRun(t, svc)
+	defer stop()
+
+	waitFor(t, func() bool { fp.mu.Lock(); defer fp.mu.Unlock(); return fp.snapshots >= 1 })
+	fp.mu.Lock()
+	fp.snapshotDelay = time.Second
+	fp.mu.Unlock()
+
+	// One event to start a slow snapshot, then wait out the debounce so
+	// the snapshot is genuinely in flight.
+	fp.emit(model.TopologyEvent{Kind: model.EventDeviceAdded, At: time.Now(), DeviceID: "first"})
+	time.Sleep(svc.debounce + 200*time.Millisecond)
+
+	// The rest of the dock enumerating: far more than the buffer holds,
+	// paced like real device arrivals rather than as a tight loop, which
+	// would outrun any consumer and prove nothing.
+	for i := 0; i < burst; i++ {
+		fp.emit(model.TopologyEvent{Kind: model.EventDeviceAdded, At: time.Now(), DeviceID: "during"})
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	// Count what Run actually saw, across however many bursts it took.
+	seen := 0
+	deadline := time.After(10 * time.Second)
+	for seen < burst+1 {
+		select {
+		case ev := <-events:
+			if ev.Type != EventTopologyChanged {
+				continue
+			}
+			tc, ok := ev.Data.(TopologyChanged)
+			if !ok {
+				t.Fatalf("data is %T, want TopologyChanged", ev.Data)
+			}
+			seen += len(tc.Events)
+		case <-deadline:
+			t.Fatalf("Run reported %d of %d hotplug events; the rest were dropped while it was taking a snapshot", seen, burst+1)
+		}
+	}
+}
+
+// A hub that is still enumerating cannot be opened, so a snapshot taken
+// during a plug is missing part of the tree. The plug that would have
+// prompted another look is already past, so the service has to go back on
+// its own or the UI keeps a half-read dock.
+func TestRunRetriesAnIncompleteSnapshot(t *testing.T) {
+	withSSD, _ := fixtureVariants(t)
+	partial, _ := fixtureVariants(t)
+	// The shape the Windows collector produces when a hub will not open:
+	// the hub is there, its ports are not.
+	partial.Controllers[0].RootHub.Hub.Ports[0].Device.Hub.Incomplete = true
+	partial.Controllers[0].RootHub.Hub.Ports[0].Device.Hub.Ports = nil
+
+	fp := newFakeProvider(t, partial)
+	svc := NewService(fp)
+	events, unsub := svc.Subscribe()
+	defer unsub()
+	stop := startRun(t, svc)
+	defer stop()
+
+	waitFor(t, func() bool { fp.mu.Lock(); defer fp.mu.Unlock(); return fp.snapshots >= 1 })
+	fp.events <- model.TopologyEvent{Kind: model.EventDeviceAdded, At: time.Now(), DeviceID: "hub"}
+	waitEvent(t, events, EventTopologyChanged, 3*time.Second)
+
+	// By the time it looks again the hub has settled.
+	fp.set(withSSD)
+
+	// The retry happens with no further hotplug at all.
+	waitEvent(t, events, EventTopologyChanged, 5*time.Second)
+	waitFor(t, func() bool {
+		a, err := svc.Snapshot(context.Background())
+		return err == nil && !a.Incomplete
+	})
+}
+
+// A hub that can never be opened must not put the service in a loop.
+func TestRunStopsRetryingAHubThatNeverOpens(t *testing.T) {
+	partial, _ := fixtureVariants(t)
+	partial.Controllers[0].RootHub.Hub.Ports[0].Device.Hub.Incomplete = true
+	partial.Controllers[0].RootHub.Hub.Ports[0].Device.Hub.Ports = nil
+
+	fp := newFakeProvider(t, partial)
+	svc := NewService(fp)
+	stop := startRun(t, svc)
+	defer stop()
+
+	waitFor(t, func() bool { fp.mu.Lock(); defer fp.mu.Unlock(); return fp.snapshots >= 1 })
+	fp.events <- model.TopologyEvent{Kind: model.EventDeviceAdded, At: time.Now(), DeviceID: "hub"}
+
+	// One refresh plus a bounded number of retries, and then it stops.
+	time.Sleep(svc.debounce + (maxIncompleteRetries+3)*incompleteRetryDelay)
+	fp.mu.Lock()
+	settled := fp.snapshots
+	fp.mu.Unlock()
+
+	time.Sleep(3 * incompleteRetryDelay)
+	fp.mu.Lock()
+	after := fp.snapshots
+	fp.mu.Unlock()
+	if after != settled {
+		t.Errorf("still re-snapshotting a hub that never opens: %d then %d", settled, after)
+	}
+	if settled > 2+maxIncompleteRetries {
+		t.Errorf("took %d snapshots, want at most %d", settled, 2+maxIncompleteRetries)
+	}
+}
+
+// An incomplete snapshot must not be served from cache for the full TTL,
+// or an HTTP caller sees the half-read machine long after it settled.
+func TestIncompleteSnapshotIsNotCachedForTheFullTTL(t *testing.T) {
+	withSSD, _ := fixtureVariants(t)
+	partial, _ := fixtureVariants(t)
+	partial.Controllers[0].RootHub.Hub.Ports[0].Device.Hub.Incomplete = true
+
+	fp := newFakeProvider(t, partial)
+	svc := NewService(fp, WithCacheTTL(time.Minute))
+
+	a, err := svc.Snapshot(context.Background())
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+	if !a.Incomplete {
+		t.Fatal("snapshot not marked incomplete")
+	}
+
+	fp.set(withSSD)
+	// Inside the short window the partial snapshot still stands.
+	if a2, _ := svc.Snapshot(context.Background()); !a2.Incomplete {
+		t.Error("re-read immediately, want the cached partial snapshot")
+	}
+	time.Sleep(incompleteTTL + 100*time.Millisecond)
+	a3, err := svc.Snapshot(context.Background())
+	if err != nil {
+		t.Fatalf("snapshot: %v", err)
+	}
+	if a3.Incomplete {
+		t.Error("still serving the partial snapshot after its short TTL")
+	}
 }

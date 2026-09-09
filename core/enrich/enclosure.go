@@ -138,7 +138,24 @@ func companionHub(n *hubNode, byPath map[string]*model.Device) *model.Device {
 // and mark everything connectable, so the rule simply does not fire for
 // them and they stay as separate boxes, which is the honest answer when
 // nothing can distinguish an internal chip from a plugged-in hub.
-func insideParent(child *hubNode) bool {
+//
+// Two things are never absorbed, because being wrong about them hides a
+// whole object rather than merging two chips inside one:
+//
+//   - anything on a root hub. The computer's own port table is the one we
+//     have evidence is unreliable (see plan/TODO.md on DEVIANT's phantom
+//     sockets), and a dock plugged into a port it mislabels would
+//     disappear into "this computer".
+//   - a known dock, which is by definition a box someone plugged in and so
+//     can never be wiring inside another one.
+//
+// The cost of these exceptions is that a hub genuinely soldered inside the
+// chassis draws as its own box. That is a cosmetic imperfection; a
+// vanishing dock is a broken picture.
+func insideParent(child, parent *hubNode) bool {
+	if parent.isRoot() || child.dock != nil {
+		return false
+	}
 	return child.port != nil && child.port.Connector != nil && !child.port.Connector.UserConnectable
 }
 
@@ -146,7 +163,7 @@ func insideParent(child *hubNode) bool {
 func sameBox(child, parent *hubNode) bool {
 	switch {
 	// A hub wired to a port that is not a socket at all.
-	case insideParent(child):
+	case insideParent(child, parent):
 		return true
 	// Two hubs of the same known dock.
 	case child.dock != nil && child.dock == parent.dock:

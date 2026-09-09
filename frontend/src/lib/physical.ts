@@ -38,6 +38,11 @@ export interface PhysicalNode {
   /** Enclosure id for a box, normalised device id for a leaf. */
   id: string
   kind: PhysicalKind
+  /**
+   * True when any hub in this box could not be read to the end, so the
+   * sockets shown are only the ones we know about.
+   */
+  incomplete: boolean
   /** The hubs folded into this box, in walk order; empty for a leaf. */
   members: Device[]
   enclosure: Enclosure | null
@@ -166,7 +171,7 @@ function socketsFor(build: Build, boxId: string, members: Device[]): PhysicalSoc
 }
 
 function leafNode(device: Device): PhysicalNode {
-  return { id: normalizeId(device.id), kind: 'device', members: [], enclosure: null, device, sockets: [], children: [] }
+  return { id: normalizeId(device.id), kind: 'device', members: [], enclosure: null, device, sockets: [], children: [], incomplete: false }
 }
 
 function boxNode(build: Build, boxId: string): PhysicalNode {
@@ -183,6 +188,7 @@ function boxNode(build: Build, boxId: string): PhysicalNode {
     device: null,
     sockets: [],
     children: [],
+    incomplete: members.some((m) => m.hub?.incomplete === true),
   }
   // Register before recursing: a box reached from two places must not be
   // rebuilt, and registering first also stops a cycle in malformed data.

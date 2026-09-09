@@ -144,6 +144,7 @@ func (w *walker) walkHub(ctx context.Context, dev *model.Device, name string) {
 	h, err := openDevice(`\\.\` + name)
 	if err != nil {
 		w.warnf("hub %s: %v", dev.PortPath, err)
+		hub.Incomplete = true
 		return
 	}
 	defer windows.CloseHandle(h)
@@ -157,6 +158,7 @@ func (w *walker) walkHub(ctx context.Context, dev *model.Device, name string) {
 	node := make([]byte, 76)
 	if _, err := ioctl(h, ioctlUSBGetNodeInformation, node, node); err != nil {
 		w.warnf("hub %s: node information: %v", dev.PortPath, err)
+		hub.Incomplete = true
 		return
 	}
 	hub.PortCount = int(node[6])
@@ -181,8 +183,14 @@ func (w *walker) walkHub(ctx context.Context, dev *model.Device, name string) {
 		hub.Kind = model.HubUnknown
 	}
 
+	// Allocated up front so a hub whose walk is cut short still marshals
+	// its port list as [] rather than null. A JSON null for a list is a
+	// shape every consumer has to special-case, and one that forgot cost
+	// the UI a frozen diagram.
+	hub.Ports = make([]model.Port, 0, hub.PortCount)
 	for port := 1; port <= hub.PortCount; port++ {
 		if ctx.Err() != nil {
+			hub.Incomplete = true
 			return
 		}
 		hub.Ports = append(hub.Ports, w.collectPort(ctx, h, dev, port))
@@ -295,6 +303,7 @@ func (w *walker) collectPort(ctx context.Context, h windows.Handle, parent *mode
 		name, err := readNameWithIndex(h, ioctlUSBGetNodeConnectionName, uint32(number))
 		if err != nil {
 			w.warnf("port %s: hub name: %v", portPath, err)
+			dev.Hub.Incomplete = true
 		} else {
 			w.walkHub(ctx, dev, name)
 		}

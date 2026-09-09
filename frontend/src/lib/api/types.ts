@@ -86,7 +86,18 @@ export interface Hub {
   port_count: number
   bus_powered: boolean
   device_path?: string
-  ports: Port[]
+  /**
+   * Null when the hub could not be opened: Go marshals a nil slice as
+   * null, and that is the shape a hub takes while it is still
+   * enumerating. Never assume this is an array.
+   */
+  ports: Port[] | null
+  /**
+   * The collector could not finish reading this hub, so `ports` is empty
+   * or short rather than the hub really having nothing on it. Usually a
+   * hub that was still enumerating; the reason is in Topology.warnings.
+   */
+  incomplete?: boolean
 }
 
 export interface Device {

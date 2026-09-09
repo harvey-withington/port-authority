@@ -344,7 +344,16 @@ type Hub struct {
 	PortCount  int     `json:"port_count"`
 	BusPowered bool    `json:"bus_powered"`
 	DevicePath string  `json:"device_path,omitempty"`
-	Ports      []Port  `json:"ports"`
+	// Ports is empty rather than absent when a hub has none. Consumers
+	// still have to tolerate a JSON null: a snapshot from an older build
+	// carries one for a hub that could not be opened.
+	Ports []Port `json:"ports"`
+	// Incomplete marks a hub the collector could not finish reading, so
+	// Ports is empty or short rather than the hub really having nothing on
+	// it. A hub that is still enumerating cannot be opened yet, and
+	// without this the snapshot would claim it is empty; the reason is in
+	// Topology.Warnings.
+	Incomplete bool `json:"incomplete,omitempty"`
 }
 
 // Port is one downstream port of a hub.

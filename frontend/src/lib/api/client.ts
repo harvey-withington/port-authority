@@ -56,7 +56,10 @@ function isAbort(e: unknown): boolean {
 async function getJson<T>(fetchFn: FetchLike, url: string, signal?: AbortSignal): Promise<T> {
   let res: Response
   try {
-    res = await fetchFn(url, { signal, headers: { Accept: 'application/json' } })
+    // no-store: every endpoint reports the machine as it is right now, and
+    // a body served from the browser cache is a picture of a machine that
+    // has since changed.
+    res = await fetchFn(url, { signal, cache: 'no-store', headers: { Accept: 'application/json' } })
   } catch (e) {
     if (isAbort(e)) throw e
     throw new ApiError(e instanceof Error ? e.message : String(e), 0, url)

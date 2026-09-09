@@ -22,6 +22,14 @@ const (
 	// sampleMaxAge is how long a throughput sample is reported by
 	// /api/v1/throughput after it was received.
 	sampleMaxAge = 5 * time.Second
+	// incompleteRetryDelay is how long to wait before re-reading a
+	// topology that came back partial. A hub that is still enumerating
+	// refuses to open, and the plug that would have prompted another
+	// refresh has already been and gone.
+	incompleteRetryDelay = 750 * time.Millisecond
+	// maxIncompleteRetries bounds that: a hub the collector can never open
+	// must not put the service in a re-snapshot loop.
+	maxIncompleteRetries = 4
 )
 
 // Run drives the live side of the service: it consumes the provider's
@@ -63,7 +71,17 @@ func (s *Service) Run(ctx context.Context) error {
 		timer    *time.Timer
 		fire     <-chan time.Time
 		deadline time.Time
+		// refreshing is true while a snapshot goroutine is running. The
+		// snapshot must not happen on this loop: it takes seconds on a
+		// busy dock, and a loop that is not receiving is a loop whose
+		// provider is dropping the events it cannot hand over. That is how
+		// the last device of a dock used to go unreported.
+		refreshing bool
+		// retries counts consecutive partial snapshots, so a hub that
+		// never opens stops being retried.
+		retries int
 	)
+	refreshed := make(chan refreshResult, 1)
 	stopTimer := func() {
 		if timer != nil {
 			timer.Stop()
@@ -101,12 +119,46 @@ func (s *Service) Run(ctx context.Context) error {
 
 		case <-fire:
 			timer, fire = nil, nil
+			// One snapshot at a time: a second would only queue behind the
+			// first inside the service. The events keep piling into
+			// pending and are picked up when this one lands.
+			if refreshing {
+				continue
+			}
 			burst := pending
 			pending = nil
-			if a, err := s.refresh(ctx, burst, prev); err == nil {
-				prev = a
+			refreshing = true
+			go func(burst []model.TopologyEvent, base *Annotated) {
+				a, err := s.refresh(ctx, burst, base)
+				refreshed <- refreshResult{annotated: a, err: err, events: len(burst)}
+			}(burst, prev)
+
+		case r := <-refreshed:
+			refreshing = false
+			if r.err == nil {
+				prev = r.annotated
 			} else if ctx.Err() == nil {
-				s.logger.Printf("refresh after %d hotplug event(s) failed: %v", len(burst), err)
+				s.logger.Printf("refresh after %d hotplug event(s) failed: %v", r.events, r.err)
+			}
+			// Anything that arrived while that snapshot was being taken is
+			// not in it. Without this the last plug of a dock is only ever
+			// seen by the next hotplug, which may never come.
+			switch {
+			case len(pending) > 0:
+				retries = 0
+				stopTimer()
+				timer = time.NewTimer(0)
+				fire = timer.C
+			case r.err == nil && r.annotated.Incomplete && retries < maxIncompleteRetries:
+				// Part of the tree could not be read, which on a plug means
+				// the hardware had not settled. Read it again shortly; the
+				// hotplug that would have done so is already past.
+				retries++
+				stopTimer()
+				timer = time.NewTimer(incompleteRetryDelay)
+				fire = timer.C
+			default:
+				retries = 0
 			}
 
 		case smp, ok := <-samples:
@@ -118,6 +170,14 @@ func (s *Service) Run(ctx context.Context) error {
 			s.hub.broadcast(Event{Type: EventThroughputSample, At: time.Now(), Data: smp})
 		}
 	}
+}
+
+// refreshResult carries a finished refresh back to the Run loop.
+type refreshResult struct {
+	annotated *Annotated
+	err       error
+	// events is the size of the burst that prompted it, for the log line.
+	events int
 }
 
 // drainTimeout bounds how long Run waits for provider streams to close

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { Connector, Port } from './api/types'
+import type { Connector, Port, Topology } from './api/types'
 import { companionPort, indexHubPaths, isUsb4, normalizeHubPath, socketKind, visiblePorts } from './ports'
 import { controller, device, hub, port, sampleTopology, topology } from './fixtures.test-helpers'
 
@@ -98,7 +98,7 @@ describe('visiblePorts across two hubs', () => {
   it('keeps a port whose companion hub is not in the snapshot', () => {
     const { hubA, topology: t } = twoHubTopology()
     const index = indexHubPaths(t)
-    const orphan = hubA.hub?.ports.find((p) => p.number === 4) as Port
+    const orphan = hubA.hub?.ports?.find((p) => p.number === 4) as Port
     expect(companionPort(orphan, index)).toBeNull()
     expect(visiblePorts(hubA, t, index)).toContain(orphan)
   })
@@ -138,7 +138,7 @@ describe('visiblePorts within one root hub', () => {
 describe('visiblePorts without connector data', () => {
   it('keeps every port of an old snapshot', () => {
     const t = sampleTopology()
-    const dock = t.controllers[0].root_hub?.hub?.ports[0].device
+    const dock = t.controllers[0].root_hub?.hub?.ports?.[0].device
     if (!dock) throw new Error('fixture has no dock')
     for (const p of dock.hub?.ports ?? []) expect(p.connector).toBeUndefined()
     expect(visiblePorts(dock, t).map((p) => p.number)).toEqual([1, 2, 3])
@@ -146,5 +146,44 @@ describe('visiblePorts without connector data', () => {
 
   it('returns nothing for a device that is not a hub', () => {
     expect(visiblePorts(device({ id: 'USB\\MOUSE' }), null)).toEqual([])
+  })
+})
+
+// A hub the collector could not open has a nil Ports slice, which Go
+// marshals as `"ports": null`, not `[]`. That shape arrives whenever a
+// dock is replugged while the app is running, so nothing that walks the
+// tree may assume ports is an array.
+describe('a hub whose ports could not be read', () => {
+  const withNullPorts = (): Topology => {
+    const halfRead = device({
+      id: 'USB\VID_2109&PID_2822\HALF', class: 'hub',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      hub: { kind: 'usb2', depth: 1, port_count: 0, bus_powered: false, incomplete: true, ports: null as any, device_path: 'USB#VID_2109&PID_2822#X' },
+    })
+    const root = device({
+      id: 'USB\ROOT', class: 'hub',
+      hub: hub([port(1, halfRead, { connector: connector({ type_c: true }) })], { kind: 'root', depth: 0, device_path: 'USB#ROOT_HUB30#X' }),
+    })
+    return topology([controller(root)])
+  }
+
+  it('can still be indexed by device path', () => {
+    expect(() => indexHubPaths(withNullPorts())).not.toThrow()
+  })
+
+  it('reports no visible ports rather than failing', () => {
+    const t = withNullPorts()
+    const half = t.controllers[0].root_hub!.hub!.ports![0].device!
+    expect(visiblePorts(half, t)).toEqual([])
+  })
+
+  it('resolves a companion that points at it without failing', () => {
+    const t = withNullPorts()
+    const index = indexHubPaths(t)
+    const p = port(2, undefined, {
+      connector: { type_c: true, user_connectable: true, multiple_companions: false, companion_hub_path: 'USB#VID_2109&PID_2822#X', companion_port: 1 },
+    })
+    expect(() => companionPort(p, index)).not.toThrow()
+    expect(companionPort(p, index)).toBeNull()
   })
 })
