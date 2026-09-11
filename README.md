@@ -84,7 +84,20 @@ The API binds to loopback only, and browsers are held to this app's own origins,
 | `docs` | Public: the spec, decision records, anything a contributor should read. Committed here. |
 | `plan` | Private: TODOs and planning notes. Its own separate private git repository, never pushed with this one. |
 
-## Contributing a fixture
+## Contributing
+
+Commit messages are one line: a conventional-commit prefix, then the changes as brief clauses separated by ` / `, no body.
+
+```
+feat: severity glyphs on findings / clickable flags filter the panel / host name on the computer box
+fix: scrubber no longer re-scrubs already scrubbed ids
+```
+
+Before a UI change goes in, run the checks in `frontend/UI-CONVENTIONS.md`'s ground rules (`npm run check && npm run test:run`) and update that file when a shared component or pattern changes; `go test ./...` covers the rest.
+
+The full set of conventions, including the architecture rules and how knowledge base entries are made, is in `.claude/skills/conventions/SKILL.md`. It is written as a skill so an AI coding assistant picks it up, and reads fine as a document for people.
+
+### Contributing a fixture
 
 Interesting setups (a dock that misbehaves, a device that negotiates the wrong speed) are most useful as fixtures. Capture one, scrub the serial numbers, and send it:
 
@@ -95,7 +108,7 @@ go run ./tools/scrubfixture my-machine.json
 
 The scrubber rewrites `serial_number` fields, the serial segment of instance IDs and the machine's name (`host.name`) in place, keeping everything else byte-for-byte, so the fixture still replays exactly. The make and model stay, since they describe the hardware rather than you.
 
-Rules that keep the macOS port a "write a DarwinProvider" job:
+### Rules that keep the macOS port a "write a DarwinProvider" job
 
 - `core/*` never imports anything under `platform/`.
 - Consumers check `ProviderCaps`, never `runtime.GOOS`.
