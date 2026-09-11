@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"portauthority/core/api"
+	"portauthority/core/kb"
 	"portauthority/platform"
 )
 
@@ -74,6 +75,13 @@ func (a *App) serve() {
 	if err != nil {
 		a.fail(fmt.Sprintf("no provider for this platform: %v", err))
 		return
+	}
+	// The user's own docks live in their config directory. Losing them
+	// is not fatal: the app runs on the shipped knowledge base alone.
+	if dir, err := kb.DefaultLocalDir(); err != nil {
+		log.Printf("%s: no config directory, running without a local knowledge base: %v", AppName, err)
+	} else if err := kb.UseLocalDir(dir); err != nil {
+		log.Printf("%s: local knowledge base in %s not loaded: %v", AppName, dir, err)
 	}
 	svc := api.NewService(p, api.WithLogger(log.Default()))
 	ctx, cancel := context.WithCancel(context.Background())

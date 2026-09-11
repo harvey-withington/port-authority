@@ -12,9 +12,9 @@
 // Encoding, per the handoff spec: edge thickness is link capacity, edge
 // colour (with a dash pattern, so colour is never alone) is link health,
 // and the flow overlay is live utilisation of that link.
-import type { Controller, Device, Enclosure, LinkSpeed, Port, Topology, USB4Router } from './api/types'
+import type { Controller, Device, DockView, Enclosure, LinkSpeed, Port, Topology, USB4Router } from './api/types'
 import { normalizeId } from './ids'
-import { linkBitrate, linkHealth, linkRank, type LinkHealth } from './link'
+import { isLinkKnown, linkBitrate, linkHealth, linkRank, type LinkHealth } from './link'
 import { sampleFor, type ThroughputMap } from './throughput'
 import { childEntries } from './topology'
 import { indexHubPaths, visiblePorts, type HubPathIndex } from './ports'
@@ -91,6 +91,13 @@ export interface GraphNode {
   incomplete?: boolean
   /** USB4 host routers folded into this box (the computer's own). */
   hostRouters?: number
+  /** The computer's make and model, on the host box, when the provider reports them. */
+  hostModel?: string
+  /**
+   * The dock's own USB4 router, folded into the box: the box hangs from a
+   * USB4 cable and carries whatever the router carries. Physical view only.
+   */
+  dockRouter?: USB4Router
   /** Bits per second through this node's uplink: its own sample, or the sum of its subtree. */
   bps: number
 }
@@ -124,6 +131,19 @@ export interface GraphLayout {
 export interface GraphOptions {
   isExpanded: (deviceId: string) => boolean
   throughput: ThroughputMap
+  /** Dock id -> knowledge base entry; a dock's cable is judged against its uplink maximum. */
+  docks?: ReadonlyMap<string, DockView>
+}
+
+/** The speed a USB4 router's upstream link runs at: measured when the provider read it, else the assumed 40 Gbps. */
+export function routerSpeed(router: USB4Router): LinkSpeed {
+  return router.negotiated_link && isLinkKnown(router.negotiated_link) ? router.negotiated_link : USB4_ROUTER_SPEED
+}
+
+/** The fastest link the knowledge base says a dock's uplink can carry, when it says. */
+export function dockUplinkMax(enclosure: Enclosure | null | undefined, docks?: ReadonlyMap<string, DockView>): LinkSpeed {
+  const max = enclosure?.dock_id ? docks?.get(enclosure.dock_id)?.uplink?.max_link : undefined
+  return max && isLinkKnown(max) ? max : 'unknown'
 }
 
 const MIN_EDGE_WIDTH = 1.5
@@ -335,12 +355,21 @@ interface RouterTree {
   carriedOf: (router: USB4Router) => LayoutLink[]
 }
 
-/** The link a router hangs from: a USB4 cable, whose socket is unknown. */
-function routerLink(item: LayoutItem): LayoutLink {
-  return { item, port: null, speed: USB4_ROUTER_SPEED, max: USB4_ROUTER_SPEED, health: 'idle' }
+/**
+ * The link a router hangs from: a USB4 cable, whose socket is unknown.
+ * Nothing says what the far end could do, so the health stays unjudged.
+ */
+function routerLink(item: LayoutItem, router: USB4Router): LayoutLink {
+  const speed = routerSpeed(router)
+  return { item, port: null, speed, max: speed, health: 'idle' }
 }
 
-function routerTree(topology: Topology | null): RouterTree | null {
+/**
+ * Routers in `folded` are not in the tree at all: they stand for a box the
+ * physical view draws instead. Their children stay reachable through
+ * `childrenOf`, so the box can hang them off itself.
+ */
+function routerTree(topology: Topology | null, folded: ReadonlySet<string> = new Set()): RouterTree | null {
   const routers = topology?.usb4 ?? []
   if (routers.length === 0) return null
 
@@ -348,6 +377,7 @@ function routerTree(topology: Topology | null): RouterTree | null {
   const childrenOf = new Map<string, USB4Router[]>()
   const roots: USB4Router[] = []
   for (const r of routers) {
+    if (folded.has(normalizeId(r.id))) continue
     const parent = r.parent_id ? normalizeId(r.parent_id) : ''
     if (parent && ids.has(parent) && parent !== normalizeId(r.id)) {
       childrenOf.set(parent, [...(childrenOf.get(parent) ?? []), r])
@@ -368,7 +398,7 @@ function routerTree(topology: Topology | null): RouterTree | null {
   const build = (router: USB4Router): LayoutItem => {
     const node = blankNode(normalizeId(router.id), 'router')
     node.router = router
-    const children = (childrenOf.get(node.id) ?? []).map((child) => routerLink(build(child)))
+    const children = (childrenOf.get(node.id) ?? []).map((child) => routerLink(build(child), child))
     return { node, children: [...children, ...carriedOf(router)] }
   }
 
@@ -389,8 +419,7 @@ function routerGroup(topology: Topology | null): LayoutItem[] {
  * machine. The socket it is in stays unknown, so the edge leaves from the
  * middle rather than from a socket we would have to guess at.
  */
-function routersOnTheComputer(topology: Topology | null): { links: LayoutLink[], hosts: number } {
-  const tree = routerTree(topology)
+function routersOnTheComputer(tree: RouterTree | null): { links: LayoutLink[], hosts: number } {
   if (!tree) return { links: [], hosts: 0 }
 
   const links: LayoutLink[] = []
@@ -398,12 +427,12 @@ function routersOnTheComputer(topology: Topology | null): { links: LayoutLink[],
   for (const root of tree.roots) {
     if (root.kind !== 'host') {
       // A device router with no host above it: still something plugged in.
-      links.push(routerLink(tree.build(root)))
+      links.push(routerLink(tree.build(root), root))
       continue
     }
     hosts++
     for (const child of tree.childrenOf.get(normalizeId(root.id)) ?? []) {
-      links.push(routerLink(tree.build(child)))
+      links.push(routerLink(tree.build(child), child))
     }
     links.push(...tree.carriedOf(root))
   }
@@ -502,7 +531,40 @@ function hiddenBehind(node: PhysicalNode): number {
   return n
 }
 
+/** Nodes in a set of links, for the hidden count of a collapsed box. */
+function countItems(links: readonly LayoutLink[]): number {
+  let n = 0
+  for (const link of links) n += 1 + countItems(link.item.children)
+  return n
+}
+
+/** Every box the physical reading drew, so a router's enclosure is only honoured when that box exists. */
+function boxIds(roots: readonly PhysicalNode[]): Set<string> {
+  const out = new Set<string>()
+  const walk = (node: PhysicalNode): void => {
+    if (node.device === null) out.add(node.id)
+    for (const child of node.children) walk(child.node)
+  }
+  for (const root of roots) walk(root)
+  return out
+}
+
 export function layoutPhysical(topology: Topology | null, opts: GraphOptions): GraphLayout {
+  const roots = buildPhysical(topology)
+
+  // A dock's own USB4 router is the dock, seen from the fabric, so it folds
+  // into the dock's box the way the computer's host routers fold into the
+  // computer. The box then hangs from a USB4 cable, and what the router
+  // carries (a USB4 SSD, a disk over PCIe) hangs off the box rather than
+  // off the computer. Enrichment names the box; nothing is matched here.
+  const boxes = boxIds(roots)
+  const dockRouters = new Map<string, USB4Router>()
+  for (const router of topology?.usb4 ?? []) {
+    if (router.kind === 'device' && router.enclosure_id && boxes.has(router.enclosure_id)) dockRouters.set(router.enclosure_id, router)
+  }
+  const folded = new Set([...dockRouters.values()].map((r) => normalizeId(r.id)))
+  const tree = routerTree(topology, folded)
+
   const build = (physical: PhysicalNode, port: Port | null): LayoutItem => {
     const isBox = physical.device === null
     const node = blankNode(physical.id, isBox ? 'box' : 'device')
@@ -516,6 +578,7 @@ export function layoutPhysical(topology: Topology | null, opts: GraphOptions): G
       // The first member is the box's uplink hub: the one whose name and
       // class stand in for the box when the knowledge base has no name.
       node.device = physical.members[0]
+      node.dockRouter = dockRouters.get(physical.id)
       fitSockets(
         node,
         physical.sockets.map((s) => ({ key: s.key, port: s.port, occupied: s.port.device !== undefined, also: s.also })),
@@ -524,14 +587,40 @@ export function layoutPhysical(topology: Topology | null, opts: GraphOptions): G
       node.device = physical.device ?? undefined
     }
 
+    // What the box's router carries over USB4: other routers, and devices
+    // reached through a PCIe tunnel. The socket they are in is unknown.
+    const carried: LayoutLink[] = []
+    if (node.dockRouter && tree) {
+      const routerId = normalizeId(node.dockRouter.id)
+      carried.push(...(tree.childrenOf.get(routerId) ?? []).map((child) => routerLink(tree.build(child), child)), ...tree.carriedOf(node.dockRouter))
+    }
+
     const open = !isBox || opts.isExpanded(physical.id)
-    node.hiddenCount = open ? 0 : hiddenBehind(physical)
+    node.hiddenCount = open ? 0 : hiddenBehind(physical) + countItems(carried)
     const children: LayoutLink[] = []
     if (open) {
       for (const child of physical.children) {
         // A child only exists because something is plugged into the socket.
         const plugged = child.socket.port.device
         if (!plugged) continue
+        // A dock with its own router hangs from a USB4 cable, drawn at the
+        // speed the router negotiated and judged against what the
+        // knowledge base says the dock's uplink can do. The port's own
+        // speed is the USB tunnel inside that cable, which the box's
+        // badge still shows.
+        const router = dockRouters.get(child.node.id)
+        if (router) {
+          const speed = routerSpeed(router)
+          const max = dockUplinkMax(child.node.enclosure, opts.docks)
+          children.push({
+            item: build(child.node, child.socket.port),
+            port: child.socket.port,
+            speed,
+            max: isLinkKnown(max) ? max : speed,
+            health: linkHealth({ negotiated_link: speed, max_link: max }, { claimed_speed: max }),
+          })
+          continue
+        }
         children.push({
           item: build(child.node, child.socket.port),
           port: child.socket.port,
@@ -540,13 +629,13 @@ export function layoutPhysical(topology: Topology | null, opts: GraphOptions): G
           health: linkHealth(child.socket.port, plugged),
         })
       }
+      children.push(...carried)
     }
     return { node, children }
   }
 
-  const roots = buildPhysical(topology)
   const items = roots.map((root) => build(root, null))
-  const { links, hosts } = routersOnTheComputer(topology)
+  const { links, hosts } = routersOnTheComputer(tree)
 
   // The computer's own routers belong to the computer, so what they carry
   // hangs off it. With no computer to hang it from, the fabric keeps its
@@ -555,6 +644,13 @@ export function layoutPhysical(topology: Topology | null, opts: GraphOptions): G
   if (computer) {
     computer.node.hostRouters = hosts
     computer.children.push(...links)
+    // The computer is named after itself when the provider says who it
+    // is; the enclosure is copied rather than written to, since it is
+    // the snapshot's own object.
+    const host = topology?.host
+    if (host?.name) computer.node.enclosure = { ...(computer.node.enclosure ?? { id: 'host', kind: 'host' }), name: host.name }
+    const model = [host?.manufacturer, host?.model].filter((s) => s && s.trim()).join(' ')
+    if (model) computer.node.hostModel = model
   }
 
   const groups: LayoutItem[][] = items.map((item) => [item])

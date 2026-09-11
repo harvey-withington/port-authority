@@ -81,8 +81,12 @@ export function deviceName(d: Device): string {
  * itself its controller chip. The knowledge base maps that back to the
  * product, and the OS name is the fallback.
  */
+/** The knowledge base's name, else what the router's maker wrote into it, else the driver's. */
 export function routerName(router: USB4Router): string {
-  return router.product_name?.trim() || router.name
+  const known = router.product_name?.trim()
+  if (known) return known
+  const own = `${router.vendor ?? ''} ${router.model ?? ''}`.trim()
+  return own || router.name
 }
 
 /** Name for whatever an index entry stands for. */

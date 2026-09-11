@@ -42,4 +42,12 @@ export const findings = {
     folded = next
     persist(next)
   },
+  /** Unfolds the finding: something has pointed at it, so its headline is not enough. */
+  open(key: string): void {
+    if (!folded[key]) return
+    const next = { ...folded }
+    delete next[key]
+    folded = next
+    persist(next)
+  },
 }

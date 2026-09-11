@@ -45,3 +45,9 @@ export function flaggedDevices(list: readonly Insight[]): ReadonlyMap<string, Se
   }
   return out
 }
+
+/** The insights that name any of the given devices, in their existing order. */
+export function insightsMentioning(list: readonly Insight[], ids: readonly string[]): Insight[] {
+  const wanted = new Set(ids.map(normalizeId))
+  return list.filter((i) => (i.device_ids ?? []).some((id) => wanted.has(normalizeId(id))))
+}

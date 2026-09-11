@@ -7,12 +7,14 @@ export interface FlashParams {
   /** CSS class applied for the flash; must define the animation. */
   className?: string
   durationMs?: number
+  /** Whether to scroll the node into view first; true unless told otherwise. */
+  scroll?: boolean
 }
 
 /**
  * Scrolls the node into view and applies a temporary class whenever the
  * token changes to a non-null value. Used to point the user at a device
- * an insight talks about.
+ * an insight talks about, and at the findings a flag stands for.
  */
 export const flash: Action<HTMLElement, FlashParams> = (node, params) => {
   let last: number | null = null
@@ -22,7 +24,8 @@ export const flash: Action<HTMLElement, FlashParams> = (node, params) => {
     if (p.token === null || p.token === last) return
     last = p.token
     const cls = p.className ?? 'flash'
-    node.scrollIntoView({ block: 'center', behavior: 'smooth' })
+    // jsdom has no scrollIntoView; the flash itself still runs there.
+    if (p.scroll !== false && typeof node.scrollIntoView === 'function') node.scrollIntoView({ block: 'center', behavior: 'smooth' })
     node.classList.remove(cls)
     // Force a reflow so re-adding the class restarts the animation.
     void node.offsetWidth

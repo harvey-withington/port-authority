@@ -55,7 +55,7 @@ The diagram has two readings. **Physical** draws the boxes on your desk: the com
 The app reports what Windows tells it, and Windows does not always know. These are limits of the available data rather than bugs, so they are worth recognising before filing one.
 
 - **An occupied USB-C socket can read as empty.** A USB-PD charger is not a USB data device, so it never reaches the USB tree at all. A USB4 drive tunnels PCIe and so appears only as a Thunderbolt router, with nothing in a snapshot tying it to the connector it arrived on. Both need connector-level (UCSI) data the collector does not gather yet.
-- **A USB4 dock can appear twice**, once as a box of hubs and once as a Thunderbolt router. A router identifies itself in a different namespace from its hubs, and only the knowledge base can bridge the two; adding the router id to `docks.json` fixes it for that model.
+- **A USB4 dock can appear twice**, once as a box of hubs and once as a Thunderbolt router. A router identifies itself in a different namespace from its hubs, and only the knowledge base can bridge the two; recording the vendor and model strings the router announces (`usb4` in `docks.json`, or the "Set up this dock" dialog) folds the router into the box for that model.
 - **Socket counts can be too high.** Windows reports one port per USB 2 / USB 3 half of a physical socket and only sometimes says which two halves pair up. Where it does not say, both are counted.
 - **A hub with two chips inside can draw as two boxes.** Only the firmware knows which of its ports reach the outside world, and cheap hubs mark every port as user-connectable. Recognised docks are folded using `docks.json`; anything else is left as reported rather than guessed at.
 
@@ -72,7 +72,7 @@ The API binds to loopback only, and browsers are held to this app's own origins,
 | `core/model` | Platform-neutral domain model. Every JSON shape here is public API. |
 | `core/provider` | The `Provider` interface every OS implements. |
 | `core/provider/mock` | Replays a saved snapshot. Drives the app without hardware. |
-| `core/kb` | Knowledge base: usb.ids with `overrides.json`, `docks.json` (port maps with printed labels), `devices.json` (capabilities devices do not report). |
+| `core/kb` | Knowledge base: usb.ids with `overrides.json`, `docks.json` (hubs per dock, router strings, port maps with printed labels), `devices.json` (capabilities devices do not report). Three layers: shipped, shared (community, not fetched yet) and the user's own docks in `<UserConfigDir>/PortAuthority/kb`, added from the app; see `docs/decisions/0002-knowledge-base-layers.md`. |
 | `core/enrich` | Annotates a topology with knowledge-base data (vendor and product names). |
 | `core/insight` | Rule engine producing plain-language findings with evidence and confidence. |
 | `core/api` | Local REST API (`/api/v1/topology`, `/insights`, `/devices/{id}`, `/capabilities`). |
@@ -80,7 +80,7 @@ The API binds to loopback only, and browsers are held to this app's own origins,
 | `platform` | Picks the native provider by build tag. The only package that imports `platform/*`. |
 | `cmd/pactl` | Collector CLI. Later the headless API service. |
 | `testdata/fixtures` | Captured real-world topologies used as regression fixtures. |
-| `tools/scrubfixture` | Replaces device serial numbers in a fixture with placeholders before it is shared. |
+| `tools/scrubfixture` | Replaces device serial numbers and the machine's name in a fixture with placeholders before it is shared. |
 | `docs` | Public: the spec, decision records, anything a contributor should read. Committed here. |
 | `plan` | Private: TODOs and planning notes. Its own separate private git repository, never pushed with this one. |
 
@@ -93,7 +93,7 @@ pactl snapshot --pretty > my-machine.json
 go run ./tools/scrubfixture my-machine.json
 ```
 
-The scrubber rewrites `serial_number` fields and the serial segment of instance IDs in place, keeping everything else byte-for-byte, so the fixture still replays exactly.
+The scrubber rewrites `serial_number` fields, the serial segment of instance IDs and the machine's name (`host.name`) in place, keeping everything else byte-for-byte, so the fixture still replays exactly. The make and model stay, since they describe the hardware rather than you.
 
 Rules that keep the macOS port a "write a DarwinProvider" job:
 

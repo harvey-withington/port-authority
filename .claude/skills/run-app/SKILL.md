@@ -23,7 +23,7 @@ If it is taken, leave it alone and use 7912 below. Never `taskkill` that PID.
 ## 1. API on a fixture (port 7912)
 
 ```bash
-cd s:/Local/Code/Projects/port-authority
+cd s:/Local/Code/Projects/port-authority/port-authority-1.0
 go run ./cmd/pactl serve --addr 127.0.0.1:7912 --fixture testdata/fixtures/deviant-caldigit-ts4-ssd-on-tb4.json
 ```
 
@@ -43,7 +43,7 @@ Other fixtures live in `testdata/fixtures/`.
 `vite preview` serves `frontend/dist`, so build first and rebuild after every change:
 
 ```bash
-cd s:/Local/Code/Projects/port-authority/frontend
+cd s:/Local/Code/Projects/port-authority/port-authority-1.0/frontend
 npx vite build
 npx vite preview --port 4173 --strictPort     # background
 for i in $(seq 1 30); do curl -sf http://localhost:4173/ >/dev/null && break; sleep 1; done

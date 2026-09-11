@@ -21,6 +21,32 @@ func TestDockForHubFindsTS4(t *testing.T) {
 	}
 }
 
+func TestDockForUSB4RouterMatchesTheTS4ByItsStrings(t *testing.T) {
+	d, ok := DockForUSB4Router("USB4 Router (1.0), CalDigit. Inc. - TS4")
+	if !ok || d.ID != "caldigit-ts4" {
+		t.Fatalf("TS4 router: got %v %v, want caldigit-ts4", d, ok)
+	}
+	if _, ok := DockForUSB4Router("USB4 Router (2.0), Corsair - EX400U"); ok {
+		t.Error("a USB4 SSD is not a dock")
+	}
+	if _, ok := DockForUSB4Router("USB4 Root Router (1.0)"); ok {
+		t.Error("the host router names no product")
+	}
+}
+
+func TestParseUSB4Name(t *testing.T) {
+	vendor, product, ok := ParseUSB4Name("USB4 Router (2.0), Corsair - EX400U")
+	if !ok || vendor != "corsair" || product != "ex400u" {
+		t.Errorf("got %q %q %v", vendor, product, ok)
+	}
+	if _, _, ok := ParseUSB4Name("USB4 Root Router (1.0)"); ok {
+		t.Error("a name without vendor and product should not parse")
+	}
+	if NormalizeName("CalDigit. Inc.") != "caldigit inc" {
+		t.Errorf("NormalizeName = %q", NormalizeName("CalDigit. Inc."))
+	}
+}
+
 func TestTS4PortsAndMap(t *testing.T) {
 	d, _ := DockForHub(0x2188, 0x5501)
 	if d.BestLink() != model.LinkUSB4Gen3 {

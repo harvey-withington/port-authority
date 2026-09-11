@@ -19,6 +19,26 @@ describe('urls', () => {
   })
 })
 
+describe('knowledge base writes', () => {
+  it('posts a dock as JSON and deletes by encoded id', async () => {
+    const fetchFn = vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === 'POST') return json({ schema_version: 1, dock: { id: 'local:acme', name: 'Acme', hubs: ['1234:0001'], source: 'local' } }, 201)
+      return json({ schema_version: 1, ok: true })
+    })
+    const client = createClient('http://x', fetchFn)
+    const created = await client.createDock({ name: 'Acme', hubs: ['1234:0001'] })
+    expect(created.dock.id).toBe('local:acme')
+    const [url, init] = fetchFn.mock.calls[0]
+    expect(url).toBe('http://x/api/v1/kb/docks')
+    expect(init?.method).toBe('POST')
+    expect(init?.body).toBe(JSON.stringify({ name: 'Acme', hubs: ['1234:0001'] }))
+    expect((init?.headers as Record<string, string>)['Content-Type']).toBe('application/json')
+    await client.deleteDock('local:acme')
+    expect(fetchFn.mock.calls[1][0]).toBe('http://x/api/v1/kb/docks/local%3Aacme')
+    expect(fetchFn.mock.calls[1][1]?.method).toBe('DELETE')
+  })
+})
+
 describe('errors', () => {
   it('surfaces the service error message with its status', async () => {
     const client = createClient('http://x', async () => json({ error: 'snapshot failed: boom' }, 502))

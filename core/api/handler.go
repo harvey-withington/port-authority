@@ -24,19 +24,42 @@ func (s *Service) Handler() http.Handler {
 	route(mux, "/api/v1/devices/{id}", s.handleDevice)
 	route(mux, "/api/v1/throughput", s.handleThroughput)
 	route(mux, "/api/v1/stream", s.handleStream)
+	// The knowledge base is the one thing the API lets a client change:
+	// the user's own docks, on this machine only.
+	routeMethods(mux, "/api/v1/kb/docks", map[string]http.HandlerFunc{
+		http.MethodGet:  s.handleKBDocksList,
+		http.MethodPost: s.handleKBDocksCreate,
+	})
+	routeMethods(mux, "/api/v1/kb/docks/{id}", map[string]http.HandlerFunc{
+		http.MethodDelete: s.handleKBDocksDelete,
+	})
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "no such endpoint")
 	})
 	return s.logging(cors(mux))
 }
 
-// route registers a GET-only endpoint. The method-less pattern catches
-// every other verb so that the 405 is JSON rather than the mux's plain
-// text default.
+// route registers a GET-only endpoint.
 func route(mux *http.ServeMux, pattern string, h http.HandlerFunc) {
-	mux.HandleFunc("GET "+pattern, h)
+	routeMethods(mux, pattern, map[string]http.HandlerFunc{http.MethodGet: h})
+}
+
+// routeMethods registers one handler per verb. The method-less pattern
+// catches every other verb so that the 405 is JSON rather than the mux's
+// plain text default, and says which verbs the endpoint takes.
+func routeMethods(mux *http.ServeMux, pattern string, handlers map[string]http.HandlerFunc) {
+	allow := make([]string, 0, len(handlers)+1)
+	for _, method := range []string{http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete} {
+		h, ok := handlers[method]
+		if !ok {
+			continue
+		}
+		allow = append(allow, method)
+		mux.HandleFunc(method+" "+pattern, h)
+	}
+	allowHeader := strings.Join(append(allow, http.MethodOptions), ", ")
 	mux.HandleFunc(pattern, func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Allow", "GET, OPTIONS")
+		w.Header().Set("Allow", allowHeader)
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 	})
 }
@@ -212,7 +235,7 @@ func cors(next http.Handler) http.Handler {
 		h.Add("Vary", "Origin")
 		if origin := r.Header.Get("Origin"); origin != "" && OriginAllowed(origin) {
 			h.Set("Access-Control-Allow-Origin", origin)
-			h.Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+			h.Set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
 			h.Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 			h.Set("Access-Control-Max-Age", "600")
 		}

@@ -239,6 +239,19 @@ func (s *Service) refresh(ctx context.Context, burst []model.TopologyEvent, prev
 	return a, nil
 }
 
+// RefreshAfterChange re-snapshots because something other than a device
+// changed (the knowledge base), and broadcasts the result the way a
+// hotplug refresh would, so subscribers redraw and see the insight diff.
+func (s *Service) RefreshAfterChange(ctx context.Context, detail string) error {
+	s.mu.Lock()
+	prev := s.cached
+	s.mu.Unlock()
+	ev := kbChangeEvent(detail)
+	ev.At = time.Now()
+	_, err := s.refresh(ctx, []model.TopologyEvent{ev}, prev)
+	return err
+}
+
 // Refresh invalidates the cache and takes a fresh snapshot from the
 // provider. Any snapshot already in flight is allowed to finish first (its
 // result may predate the change that prompted the refresh), and callers of

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addInsight, flaggedDevices, insightKey, removeInsight, sortInsights } from './insights'
+import { addInsight, flaggedDevices, insightKey, insightsMentioning, removeInsight, sortInsights } from './insights'
 import { insight } from './fixtures.test-helpers'
 
 describe('insight identity', () => {
@@ -32,5 +32,14 @@ describe('insight identity', () => {
     expect(flagged.get('USB\\A')).toBe('info')
     expect(flagged.get('USB\\B')).toBe('critical')
     expect(flagged.size).toBe(2)
+  })
+
+  it('finds the insights naming any of several devices, whatever the case', () => {
+    const a = insight({ rule_id: 'a', device_ids: ['usb\\a'] })
+    const b = insight({ rule_id: 'b', device_ids: ['USB\\B', 'USB\\C'] })
+    const none = insight({ rule_id: 'n', device_ids: [] })
+    expect(insightsMentioning([a, b, none], ['USB\\A'])).toEqual([a])
+    expect(insightsMentioning([a, b, none], ['usb\\c', 'USB\\A'])).toEqual([a, b])
+    expect(insightsMentioning([a, b, none], ['USB\\Z'])).toEqual([])
   })
 })

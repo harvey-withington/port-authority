@@ -1,5 +1,5 @@
 import type {
-  CapabilitiesResponse, DeviceResponse, ErrorResponse, HealthResponse,
+  CapabilitiesResponse, DeviceResponse, DockCreatedResponse, DockEntry, DocksResponse, ErrorResponse, HealthResponse,
   InsightsResponse, ThroughputResponse, TopologyResponse,
 } from './types'
 
@@ -28,6 +28,12 @@ export interface ApiClient {
   insights(signal?: AbortSignal): Promise<InsightsResponse>
   throughput(signal?: AbortSignal): Promise<ThroughputResponse>
   device(id: string, signal?: AbortSignal): Promise<DeviceResponse>
+  /** Every dock the service knows, across the knowledge base layers. */
+  docks(signal?: AbortSignal): Promise<DocksResponse>
+  /** Adds a dock to the user's own layer; the service re-reads the machine. */
+  createDock(entry: DockEntry, signal?: AbortSignal): Promise<DockCreatedResponse>
+  /** Forgets one of the user's own docks. */
+  deleteDock(id: string, signal?: AbortSignal): Promise<void>
 }
 
 /** Strips trailing slashes so paths can be appended verbatim. */
@@ -54,12 +60,24 @@ function isAbort(e: unknown): boolean {
 }
 
 async function getJson<T>(fetchFn: FetchLike, url: string, signal?: AbortSignal): Promise<T> {
+  return requestJson<T>(fetchFn, 'GET', url, undefined, signal)
+}
+
+async function requestJson<T>(fetchFn: FetchLike, method: string, url: string, payload: unknown, signal?: AbortSignal): Promise<T> {
   let res: Response
   try {
     // no-store: every endpoint reports the machine as it is right now, and
     // a body served from the browser cache is a picture of a machine that
     // has since changed.
-    res = await fetchFn(url, { signal, cache: 'no-store', headers: { Accept: 'application/json' } })
+    const headers: Record<string, string> = { Accept: 'application/json' }
+    if (payload !== undefined) headers['Content-Type'] = 'application/json'
+    res = await fetchFn(url, {
+      method,
+      signal,
+      cache: 'no-store',
+      headers,
+      body: payload === undefined ? undefined : JSON.stringify(payload),
+    })
   } catch (e) {
     if (isAbort(e)) throw e
     throw new ApiError(e instanceof Error ? e.message : String(e), 0, url)
@@ -87,5 +105,10 @@ export function createClient(base: string, fetchFn: FetchLike = (i, init) => fet
     insights: (signal) => getJson<InsightsResponse>(fetchFn, `${root}/insights`, signal),
     throughput: (signal) => getJson<ThroughputResponse>(fetchFn, `${root}/throughput`, signal),
     device: (id, signal) => getJson<DeviceResponse>(fetchFn, `${root}/devices/${encodeURIComponent(id)}`, signal),
+    docks: (signal) => getJson<DocksResponse>(fetchFn, `${root}/kb/docks`, signal),
+    createDock: (entry, signal) => requestJson<DockCreatedResponse>(fetchFn, 'POST', `${root}/kb/docks`, entry, signal),
+    deleteDock: async (id, signal) => {
+      await requestJson<unknown>(fetchFn, 'DELETE', `${root}/kb/docks/${encodeURIComponent(id)}`, undefined, signal)
+    },
   }
 }

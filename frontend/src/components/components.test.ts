@@ -1,6 +1,6 @@
 // Smoke tests: each shared component renders real data without runtime
 // errors and shows the text a user relies on.
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { tick } from 'svelte'
 import { fireEvent, render, screen } from '@testing-library/svelte'
 import TopologyTree from './TopologyTree.svelte'
@@ -8,6 +8,11 @@ import TopologyGraph from './TopologyGraph.svelte'
 import ViewSwitch from './ViewSwitch.svelte'
 import ZoomControl from './ZoomControl.svelte'
 import InsightList from './InsightList.svelte'
+import FindingsFilter from './FindingsFilter.svelte'
+import DockSetupDialog from './DockSetupDialog.svelte'
+import ConfirmDialog from './ConfirmDialog.svelte'
+import type { Topology } from '../lib/api/types'
+import { dockEditor } from '../lib/dockEditor.svelte'
 import Timeline from './Timeline.svelte'
 import LinkBadge from './LinkBadge.svelte'
 import ThroughputMeter from './ThroughputMeter.svelte'
@@ -19,7 +24,12 @@ import { visiblePorts } from '../lib/ports'
 import { applySample, emptyThroughput } from '../lib/throughput'
 import { flaggedDevices } from '../lib/insights'
 import { zoom } from '../lib/zoom.svelte'
-import { insight, sampleTopology } from '../lib/fixtures.test-helpers'
+import { layout } from '../lib/layout.svelte'
+import { findingFilter } from '../lib/findingFilter.svelte'
+import { focus } from '../lib/focus.svelte'
+import { findings } from '../lib/findings.svelte'
+import { insightKey } from '../lib/insights'
+import { dockedTopologyWithUsb4, insight, sampleTopology } from '../lib/fixtures.test-helpers'
 import type { TreeContext } from '../lib/tree'
 
 const topology = sampleTopology()
@@ -43,7 +53,7 @@ describe('TopologyTree', () => {
     expect(screen.getByText('USB Input Device')).toBeInTheDocument()
     expect(screen.getByText('hub 3 would not open')).toBeInTheDocument()
     expect(screen.getByText('100.0 MB/s')).toBeInTheDocument()
-    expect(screen.getAllByTitle('Mentioned in a finding').length).toBeGreaterThan(0)
+    expect(screen.getAllByTitle('Named in a warning. Show the findings for Corsair EX400U').length).toBeGreaterThan(0)
     // Every device row shows the socket it is plugged into next to its port number.
     expect(container.querySelectorAll('.socket')).toHaveLength(3)
     expect(container.querySelectorAll('.socket.empty')).toHaveLength(0)
@@ -91,7 +101,7 @@ describe('TopologyGraph', () => {
     expect(container.querySelectorAll('.flow')).toHaveLength(2)
     expect(screen.getAllByRole('meter')).toHaveLength(3)
     expect(container.querySelector('.node.flagged.pulse')).not.toBeNull()
-    expect(screen.getAllByTitle('Mentioned in a finding').length).toBeGreaterThan(0)
+    expect(screen.getAllByTitle('Named in a warning. Show the findings for Corsair EX400U').length).toBeGreaterThan(0)
   })
 
   it('draws a socket per visible port, including the empty one', async () => {
@@ -114,6 +124,45 @@ describe('TopologyGraph', () => {
     expect(container.querySelectorAll('.edge')).toHaveLength(2)
     await fireEvent.click(screen.getByLabelText('Expand CalDigit TS4 USB3.2 Gen2 HUB'))
     expect(screen.getByText('Corsair EX400U')).toBeInTheDocument()
+  })
+
+  it('badges a dock on a USB4 cable with the measured cable speed beside its USB tunnel', async () => {
+    const docks = new Map([['caldigit-ts4', { id: 'caldigit-ts4', name: 'CalDigit TS4', source: 'shipped' as const, hubs: [], uplink: { kind: 'thunderbolt4', max_link: 'usb4_40' as const } }]])
+    render(TopologyGraph, { topology: dockedTopologyWithUsb4(), ctx: { ...quiet, docks }, loading: false, detail: 'physical' })
+    await tick()
+    const badge = screen.getByTitle(/Connected over USB4/)
+    expect(badge).toHaveTextContent('20 Gbps USB4')
+    expect(badge.getAttribute('title')).toBe('Connected over USB4 / Thunderbolt at 20 Gbps USB4. The 10 Gbps badge is the USB tunnel inside that link, which every USB device in the dock shares. Slower than it could be')
+    expect(badge.classList.contains('health-slow')).toBe(true)
+    // The dock's own router is folded away; the SSD router still shows.
+    expect(screen.queryByText('USB4 Router (1.0), CalDigit. Inc. - TS4')).not.toBeInTheDocument()
+    expect(screen.getByText('Corsair EX400U')).toBeInTheDocument()
+  })
+
+  it('flags and focuses the dock when a finding names the router folded into it', async () => {
+    const cableFinding = insight({ rule_id: 'usb4-link-below-max', title: 'Dock on a slow cable', device_ids: ['USB4\\TS4'] })
+    const ctx: TreeContext = { ...quiet, flagged: flaggedDevices([cableFinding]) }
+    const { container } = render(TopologyGraph, { topology: dockedTopologyWithUsb4(), ctx, loading: false, detail: 'physical' })
+    await tick()
+    const dock = container.querySelector('.node.kind-box.flagged')
+    expect(dock?.getAttribute('data-node-id')).toBe('dock:caldigit-ts4:1')
+    expect(screen.getByRole('button', { name: 'Named in a warning. Show the findings for CalDigit TS4' })).toBeInTheDocument()
+    // "Show me" on the router lands on the dock, since the router is drawn as the dock.
+    focus.request('USB4\\TS4')
+    await tick()
+    expect(dock?.classList.contains('flash')).toBe(true)
+  })
+
+  it('opens the findings panel narrowed to the device whose flag was clicked', async () => {
+    findingFilter.clear()
+    if (layout.panelsOpen) layout.togglePanels()
+    render(TopologyGraph, { topology, ctx: busy, loading: false, detail: 'logical' })
+    await tick()
+    await fireEvent.click(screen.getByRole('button', { name: 'Named in a warning. Show the findings for Corsair EX400U' }))
+    expect(layout.panelsOpen).toBe(true)
+    expect(findingFilter.current?.name).toBe('Corsair EX400U')
+    expect(findingFilter.current?.ids).toEqual(['USB\\VID_1B1C&PID_1A20\\SSD'])
+    findingFilter.clear()
   })
 
   it('shows the loading and empty states', () => {
@@ -167,20 +216,149 @@ describe('ViewSwitch', () => {
 })
 
 describe('InsightList', () => {
+  const mouseFinding = insight({ rule_id: 'other', severity: 'info', title: 'Mouse is fine', device_ids: ['USB\\VID_046D&PID_C52B\\MOUSE'] })
+
   it('shows the empty state', () => {
-    render(InsightList, { insights: [], index, onFocusDevice: () => {} })
+    render(InsightList, { insights: [], index, filter: null, onFocusDevice: () => {}, onClearFilter: () => {} })
     expect(screen.getByText('Everything is connected at the speed it should be.')).toBeInTheDocument()
   })
 
   it('renders a card with details and resolves device names', async () => {
     const onFocus = vi.fn()
-    render(InsightList, { insights: [{ ...finding, evidence: ['negotiated link ss10'] }], index, onFocusDevice: onFocus })
+    render(InsightList, { insights: [{ ...finding, evidence: ['negotiated link ss10'] }], index, filter: null, onFocusDevice: onFocus, onClearFilter: () => {} })
     expect(screen.getByText('SSD could be faster')).toBeInTheDocument()
     await fireEvent.click(screen.getByText('Corsair EX400U'))
     expect(onFocus).toHaveBeenCalledWith('USB\\VID_1B1C&PID_1A20\\SSD')
     await fireEvent.click(screen.getByText('Details'))
     expect(screen.getByText('negotiated link ss10')).toBeInTheDocument()
     expect(screen.getByText('Confidence 90%')).toBeInTheDocument()
+  })
+
+  it('lists only the findings naming the filtered device, and flashes them', () => {
+    const filter = { ids: ['usb\\vid_1b1c&pid_1a20\\ssd'], name: 'Corsair EX400U', token: 1 }
+    const { container } = render(InsightList, { insights: [finding, mouseFinding], index, filter, onFocusDevice: () => {}, onClearFilter: () => {} })
+    expect(screen.getByText('SSD could be faster')).toBeInTheDocument()
+    expect(screen.queryByText('Mouse is fine')).not.toBeInTheDocument()
+    expect(container.querySelector('.card.flash')).not.toBeNull()
+  })
+
+  it('unfolds a folded card when a flag points at it', async () => {
+    const key = insightKey(finding)
+    findings.toggle(key)
+    expect(findings.isOpen(key)).toBe(false)
+    const filter = { ids: ['USB\\VID_1B1C&PID_1A20\\SSD'], name: 'Corsair EX400U', token: 2 }
+    const { container } = render(InsightList, { insights: [finding, mouseFinding], index, filter, onFocusDevice: () => {}, onClearFilter: () => {} })
+    await tick()
+    expect(findings.isOpen(key)).toBe(true)
+    expect(container.querySelector('.card.folded')).toBeNull()
+  })
+
+  it('offers to show everything when nothing names the filtered device', async () => {
+    const onClear = vi.fn()
+    const filter = { ids: ['USB\\GONE'], name: 'Old hub', token: 1 }
+    render(InsightList, { insights: [finding], index, filter, onFocusDevice: () => {}, onClearFilter: onClear })
+    expect(screen.getByText('Nothing currently mentions Old hub.')).toBeInTheDocument()
+    await fireEvent.click(screen.getByRole('button', { name: 'Show all findings' }))
+    expect(onClear).toHaveBeenCalled()
+  })
+})
+
+describe('DockSetupDialog', () => {
+  /** The docked laptop with the knowledge base's groupings stripped: every hub loose. */
+  const loose = (): Topology => JSON.parse(JSON.stringify(dockedTopologyWithUsb4()), (key: string, value: unknown) => (key === 'enclosure' || key === 'enclosure_id' ? undefined : value)) as Topology
+  const finding = insight({ rule_id: 'dock-not-recognised', title: 'x looks like a dock', device_ids: ['USB\\TS4_USB3_A', 'USB\\TS4_USB3_B', 'USB4\\TS4'] })
+
+  it('offers every loose hub, pre-ticks what the finding named, and saves a dock entry', async () => {
+    const t = loose()
+    const onSave = vi.fn(async () => {})
+    const onClose = vi.fn()
+    render(DockSetupDialog, { insight: finding, topology: t, index: indexTopology(t), onSave, onClose })
+    const boxes = screen.getAllByRole('checkbox') as HTMLInputElement[]
+    expect(boxes).toHaveLength(4)
+    expect(boxes.filter((b) => b.checked)).toHaveLength(2)
+    expect(screen.getByRole('textbox')).toHaveValue('CalDigit, Inc. TS4')
+    const [routerSelect, uplinkSelect] = screen.getAllByRole('combobox')
+    expect(routerSelect).toHaveValue('USB4\\TS4')
+    await fireEvent.change(uplinkSelect, { target: { value: 'usb4_40' } })
+    await fireEvent.click(screen.getByRole('button', { name: 'Save dock' }))
+    expect(onSave).toHaveBeenCalledWith({
+      name: 'CalDigit, Inc. TS4',
+      hubs: ['0000:0000'],
+      usb4: { vendor: 'CalDigit, Inc.', model: 'TS4' },
+      uplink: { kind: 'usb4', max_link: 'usb4_40' },
+    })
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('refuses an empty dock and shows why the service said no', async () => {
+    const t = loose()
+    const onSave = vi.fn(async () => {
+      throw new Error('kb: a dock needs a name')
+    })
+    render(DockSetupDialog, { insight: finding, topology: t, index: indexTopology(t), onSave, onClose: () => {} })
+    for (const box of screen.getAllByRole('checkbox')) {
+      if ((box as HTMLInputElement).checked) await fireEvent.click(box)
+    }
+    await fireEvent.click(screen.getByRole('button', { name: 'Save dock' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Give the dock a name and tick at least one hub.')
+    expect(onSave).not.toHaveBeenCalled()
+    await fireEvent.click(screen.getAllByRole('checkbox')[0])
+    await fireEvent.click(screen.getByRole('button', { name: 'Save dock' }))
+    expect(onSave).toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('kb: a dock needs a name')
+  })
+})
+
+describe('ConfirmDialog', () => {
+  it('confirms, cancels, and closes on Escape', async () => {
+    const onConfirm = vi.fn()
+    const onCancel = vi.fn()
+    render(ConfirmDialog, { title: 'Forget it?', body: 'Gone.', confirmLabel: 'Forget', danger: true, onConfirm, onCancel })
+    expect(screen.getByRole('dialog', { name: 'Forget it?' })).toBeInTheDocument()
+    await fireEvent.click(screen.getByRole('button', { name: 'Forget' }))
+    expect(onConfirm).toHaveBeenCalled()
+    await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(onCancel).toHaveBeenCalledTimes(1)
+    await fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onCancel).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('the dock finding', () => {
+  afterEach(() => dockEditor.close())
+
+  it('offers to set the dock up and opens the editor', async () => {
+    const finding = insight({ rule_id: 'dock-not-recognised', title: 'Acme looks like a dock', device_ids: [] })
+    render(InsightList, { insights: [finding], index, filter: null, onFocusDevice: () => {}, onClearFilter: () => {} })
+    await fireEvent.click(screen.getByRole('button', { name: 'Set up this dock…' }))
+    expect(dockEditor.state.kind).toBe('setup')
+  })
+})
+
+describe('FindingsFilter', () => {
+  afterEach(() => findingFilter.clear())
+
+  it('renders nothing when no device is flagged', () => {
+    const { container } = render(FindingsFilter, { flagged: new Map(), index })
+    expect(container.querySelector('select')).toBeNull()
+  })
+
+  it('offers every flagged device, narrows to the chosen one and clears again', async () => {
+    render(FindingsFilter, { flagged: flaggedDevices([finding]), index })
+    const select = screen.getByLabelText('Showing')
+    expect(screen.getByRole('option', { name: 'All findings' })).toBeInTheDocument()
+    const option = screen.getByRole('option', { name: 'Corsair EX400U' })
+    await fireEvent.change(select, { target: { value: option.getAttribute('value') } })
+    expect(findingFilter.current?.name).toBe('Corsair EX400U')
+    await fireEvent.click(screen.getByRole('button', { name: 'Show all findings' }))
+    expect(findingFilter.current).toBeNull()
+  })
+
+  it('offers a box filter as its own entry when it covers several devices', () => {
+    findingFilter.show(['USB\\A', 'USB\\B'], 'CalDigit TS4')
+    render(FindingsFilter, { flagged: flaggedDevices([finding]), index })
+    expect(screen.getByRole('option', { name: 'CalDigit TS4' })).toBeInTheDocument()
+    expect((screen.getByLabelText('Showing') as HTMLSelectElement).selectedOptions[0].textContent).toBe('CalDigit TS4')
   })
 })
 

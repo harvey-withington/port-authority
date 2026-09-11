@@ -15,7 +15,9 @@ pattern, update it in the same change.
 - No component over ~300 lines. Keyed `{#each}` blocks use stable ids (device id,
   insight key, timeline entry id), never the index.
 - Errors the user should know about are rendered (`ConnectionBanner`,
-  `StartingScreen`), never only logged. No `alert()` / `confirm()`.
+  `StartingScreen`, inline `role="alert"` text in dialogs), never only
+  logged. No `alert()` / `confirm()`: destructive actions go through
+  `ConfirmDialog`.
 - Colour is never the only signal: class colours ride on an icon, speed colours
   carry a text label, health is a ring plus a tooltip, severity has an icon.
 - Shared DOM behaviours are actions in `src/lib/actions.ts` (`flash`, `clickOutside`,
@@ -45,7 +47,18 @@ upper-cases.
 
 Small pieces of UI state that must outlive a render are rune modules under
 `lib/*.svelte.ts`: `expanded` (collapsed hubs), `focus` (show-me requests),
-`view` (diagram or tree, persisted as `pa-connected-view`).
+`view` (diagram or tree, persisted as `pa-connected-view`), `layout` (diagram
+share and whether the panels are showing), `findings` (folded cards) and
+`findingFilter` (which device the findings panel is narrowed to; not
+persisted) and `dockEditor` (which dock dialog is open, if any).
+`findingFilter.show(ids, name)` also opens the panels via
+`layout.openPanels()`, since a filter nobody can see answers nothing.
+
+The store also holds `docks` (dock id -> `DockView`, every knowledge base
+layer, refreshed with the topology) and `kbWritable`, and offers
+`addDock(entry)` / `forgetDock(id)`, which call the API and re-read the
+topology. `TreeContext.docks` hands the map to the diagram so a dock's USB4
+cable can be judged against the dock's uplink maximum.
 
 Device ids are compared case-insensitively (`lib/ids.ts`); the throughput map and
 device index are keyed by `normalizeId(id)`.
@@ -163,9 +176,29 @@ Edge encoding, per the handoff spec:
   Nothing flows when `ctx.showMeter` is false.
 
 Nodes reuse the tree's signals (class stripe and icon, `LinkBadge`, severity
-tint and warning icon, a 3 px traffic bar with `role="meter"`). Both hub-tree
+tint and a `FlagBadge`, a 3 px traffic bar with `role="meter"`). Both hub-tree
 devices and USB4 routers can be flagged and focused, since insights name
-either kind of id. Hubs toggle
+either kind of id; a box wears the worst flag of its members and its badge
+stands for every flagged member.
+
+A dock's own USB4 router (`USB4Router.enclosure_id`, stamped by enrichment
+from the router strings in `docks.json`) folds into the dock's box in the
+physical view, the way host routers fold into the computer: the box gets
+`dockRouter`, its cable from the computer is drawn at the speed the router
+negotiated (`routerSpeed`: `negotiated_link`, else the assumed
+`USB4_ROUTER_SPEED`), judged against the dock's uplink maximum from
+`TreeContext.docks` (`dockUplinkMax`), and leaves the socket the USB tunnel
+arrived on; whatever the router carries (a USB4 SSD, a PCIe disk) hangs off
+the box. The box then wears two badges: a `LinkBadge` for the USB4 cable
+(custom title `box.usb4.hint`, ring = cable health) next to the `LinkBadge`
+for the USB tunnel inside it, so 10 Gbps beside a Thunderbolt dock reads as
+the tunnel rather than a slow dock. A router whose enclosure is not a box
+in the snapshot is drawn as a router. `GraphNodeMeta` renders the second
+line of every card; `BoxTag` the "dock" / "your dock" word, with a forget
+button on the user's own docks that opens the editor. The computer's box
+is named after the machine (`Topology.host.name`) with its make and model
+(`hostModel`) on the second line when the provider reports them, and
+"This computer" otherwise. Hubs toggle
 with the same `expanded` store as the tree, so the two views stay in sync;
 a collapsed hub shows "{n} hidden". A device an insight has just named
 pulses for six seconds (node ring and incoming edge), then keeps the
@@ -200,7 +233,7 @@ transitions) is disabled under `prefers-reduced-motion`.
 `throughput` (`ThroughputMap`), `showMeter` (provider capability).
 
 `DeviceNode` shows: class icon and a left edge in the class colour, the name
-(`deviceName`), `LinkBadge`, a warning icon plus severity tint when the device is
+(`deviceName`), `LinkBadge`, a `FlagBadge` plus severity tint when the device is
 named by an insight, meta (a `PortSocket` glyph and the port number, ports in
 use, power, iso reservation, claimed speed when it differs, serial), and a
 `ThroughputMeter` for non-hubs. Hubs
@@ -209,17 +242,39 @@ collapse/expand; the collapsed set is stored per device id in localStorage
 ancestors, scroll the node into view and flash it via the `flash` action.
 Root hubs are folded into the controller header (ports in use).
 
+### Dialog / ConfirmDialog / DockSetupDialog / DockDialogs
+| Component | Props |
+|---|---|
+| `Dialog` | `title`, `onClose`, `children`, `footer?: Snippet`, `width?` |
+| `ConfirmDialog` | `title`, `body`, `confirmLabel`, `danger?`, `busy?`, `error?`, `onConfirm`, `onCancel` |
+| `DockSetupDialog` | `insight: Insight`, `topology`, `index`, `onSave: (DockEntry) => Promise<void>`, `onClose` |
+| `DockDialogs` | `live: LiveStore` |
+
+`Dialog` is the one modal: backdrop and Escape close it, focus lands on
+the first control, the body scrolls and the footer holds `.btn` buttons
+(global classes `.btn`, `.btn.primary`, `.btn.primary.danger` in
+`app.css`). `DockSetupDialog` lists every loose hub (no enclosure, or kind
+`hub`), pre-ticks the ones the finding named, suggests the router's name
+and the untied router, asks what the dock's connection can carry once a
+router is chosen (`uplink`, so the cable can be judged), and hands a
+`DockEntry` to `onSave`; a rejection is shown inline. `DockDialogs` sits in `App` and renders whichever dialog
+`dockEditor` asks for, talking to the store. The `dock-not-recognised`
+finding card opens the setup dialog; `BoxTag` opens the forget confirm.
+
 ### LinkBadge
 | Prop | Type |
 |---|---|
 | `negotiated` | `LinkSpeed` |
 | `max` | `LinkSpeed` |
 | `claimed` | `LinkSpeed` |
+| `title` | `string` (optional) replaces the port sentence; the health verdict is still appended |
 
-Fill = negotiated speed token, text = short label (`link.short.*`). Ring =
-health (`linkHealth`: good when negotiated >= min(claimed, port max), slow below,
-idle when unknown). A second swatch in the port-max colour appears when the
-port could do a different speed. Tooltip carries the full sentence.
+The whole chip is filled in the negotiated speed's colour with the short
+label (`link.short.*`) in its ink. Ring (2 px) = health (`linkHealth`: good
+when negotiated >= min(claimed, port max), slow below, idle when unknown).
+When the port could do a different speed, a small solid dot in the port-max
+colour sits beside the label, outlined in the ink so it reads on any fill;
+it carries `link.portMax` as its label. Tooltip carries the full sentence.
 
 ### ThroughputMeter
 | Prop | Type | Notes |
@@ -231,15 +286,53 @@ port could do a different speed. Tooltip carries the full sentence.
 Read fills solid, write fills at reduced opacity, both in the speed colour;
 `role="meter"` with `aria-valuenow` as a percentage.
 
+### SeverityIcon / FlagBadge
+| Component | Props |
+|---|---|
+| `SeverityIcon` | `severity: Severity`, `size?: number` (16) |
+| `FlagBadge` | `severity: Severity`, `ids: readonly string[]`, `name: string`, `size?: number` (13) |
+
+`SeverityIcon` is the one glyph per severity (`Info`, `TriangleAlert`,
+`OctagonAlert`), used by the finding cards and the flags alike so the two
+can be matched by eye. `FlagBadge` is the mark on a flagged device in the
+tree and the diagram: a button in the severity colour (`.sev-*`) whose
+label (`flag.{severity}`) names the device; pressing it calls
+`findingFilter.show(ids, name)`.
+
+### Pane
+| Prop | Type | Notes |
+|---|---|---|
+| `id` | `string` | labels the section |
+| `title` | `string` | |
+| `controls` | `Snippet` (optional) | right-aligned in the header |
+| `children` | `Snippet` | the scrolling body |
+
+### FindingsFilter
+| Prop | Type |
+|---|---|
+| `flagged` | `ReadonlyMap<string, Severity>` |
+| `index` | `DeviceIndex` |
+
+The "Showing" select in the findings pane header, reading and writing
+`findingFilter`. One option per flagged device (named through the index)
+plus "All findings"; a box filter that covers several devices is offered as
+its own entry. A clear button appears while a filter is active. Renders
+nothing when no device is flagged.
+
 ### InsightList / InsightCard
 | Component | Props |
 |---|---|
-| `InsightList` | `insights: Insight[]`, `index: DeviceIndex`, `onFocusDevice: (id) => void` |
-| `InsightCard` | `insight: Insight`, `index`, `onFocusDevice` |
+| `InsightList` | `insights: Insight[]`, `index: DeviceIndex`, `filter: FindingFilter \| null`, `onFocusDevice: (id) => void`, `onClearFilter: () => void` |
+| `InsightCard` | `insight: Insight`, `index`, `onFocusDevice`, `flashToken?: number \| null`, `scrollOnFlash?: boolean` |
 
 Severity stripe and icon, title, explanation, "What to do", affected devices as
 `DeviceName` buttons, and a Details expander with evidence bullets, confidence
-and the rule id. Empty state: `insights.empty.title`.
+and the rule id. With a `filter` only the findings naming its ids are listed
+(`insightsMentioning`), every listed card unfolds (`findings.open`) and
+flashes on the filter's token and the first one scrolls into view; a filter
+nothing matches shows
+`insights.filtered.empty` with a "Show all findings" button. Empty state:
+`insights.empty.title`.
 
 ### Timeline
 | Prop | Type |
@@ -299,6 +392,9 @@ lucide icon per class token, coloured with `--class-*`, with a localized tooltip
 - Hub toggles (tree and diagram) and Details toggles are real buttons with `aria-expanded`.
 - Device names in cards and the timeline are buttons; activating one scrolls
   and flashes the device in whichever view is showing.
+- The flag on a device is a button; activating it opens the panels and narrows
+  the findings to that device. The "Showing" select and its clear button in
+  the findings header change or cancel that filter.
 - The view switch and the diagram's zoom buttons are labelled buttons; the
   fit button carries `aria-pressed` while auto-fit is active.
 - The legend and the capability hint close with their close button or an outside click.

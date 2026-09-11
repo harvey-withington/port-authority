@@ -30,6 +30,61 @@ func annotateEnclosures(t *model.Topology) {
 	assignEnclosures(hubs, sets)
 }
 
+// dockForRouter recognises a dock by the strings its router announces:
+// the DROM vendor and model when the provider read them, else the ones
+// Windows folds into the router's name.
+func dockForRouter(r *model.USB4Router) (*kb.Dock, bool) {
+	if r.Model != "" {
+		return kb.DockForUSB4Strings(r.Vendor, r.Model)
+	}
+	return kb.DockForUSB4Router(r.Name)
+}
+
+// annotateRouterEnclosures ties a dock's USB4 router to the box its hubs
+// were grouped into, so the diagram can draw one dock with one cable and
+// hang what the router carries off the dock rather than off the computer.
+//
+// The router is recognised by the vendor and model strings it announces,
+// which the knowledge base records per dock. With two docks of one model
+// attached there is nothing to say which router is which, so neither is
+// tied to a box: the routers stay separate rather than being guessed.
+func annotateRouterEnclosures(t *model.Topology) {
+	if len(t.USB4) == 0 {
+		return
+	}
+	boxesByDock := map[string]map[string]bool{}
+	t.Walk(func(_ *model.Controller, _ *model.Device, _ *model.Port, d *model.Device) {
+		enc := d.Enclosure
+		if enc == nil || enc.Kind != model.EnclosureDock || enc.DockID == "" {
+			return
+		}
+		if boxesByDock[enc.DockID] == nil {
+			boxesByDock[enc.DockID] = map[string]bool{}
+		}
+		boxesByDock[enc.DockID][enc.ID] = true
+	})
+	for i := range t.USB4 {
+		r := &t.USB4[i]
+		// Derived, never observed: a replayed snapshot carries the tie its
+		// knowledge base made, which this one must be free to undo.
+		r.EnclosureID = ""
+		if r.Kind != "device" {
+			continue
+		}
+		dock, ok := dockForRouter(r)
+		if !ok {
+			continue
+		}
+		boxes := boxesByDock[dock.ID]
+		if len(boxes) != 1 {
+			continue
+		}
+		for id := range boxes {
+			r.EnclosureID = id
+		}
+	}
+}
+
 // hubNode is one logical hub together with the hub it hangs off.
 type hubNode struct {
 	dev *model.Device
@@ -351,7 +406,7 @@ func assignEnclosures(hubs []*hubNode, sets [][]int) {
 				keys[productKey(hubs[i].dev)] = true
 			}
 			id := instances.idFor(dock, keys)
-			enc = &model.Enclosure{ID: id, Kind: model.EnclosureDock, Name: dock.Name, DockID: dock.ID}
+			enc = &model.Enclosure{ID: id, Kind: model.EnclosureDock, Name: dock.Name, DockID: dock.ID, Source: string(dock.Source)}
 		default:
 			enc = &model.Enclosure{ID: "hub:" + hubs[set[0]].dev.ID, Kind: model.EnclosureHub}
 		}

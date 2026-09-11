@@ -6,7 +6,7 @@
 // Everything time- or network-related is injectable so the store can be
 // unit-tested with fakes.
 import type {
-  Insight, ProviderCaps, StreamEvent, Topology, TopologyChangedData, HelloData, ThroughputSample,
+  DockEntry, DockView, Insight, ProviderCaps, StreamEvent, Topology, TopologyChangedData, HelloData, ThroughputSample,
 } from './api/types'
 import { isStreamEvent } from './api/types'
 import { createClient, type ApiClient, type FetchLike } from './api/client'
@@ -51,10 +51,18 @@ export interface LiveStore {
   readonly error: string | null
   readonly capturedAt: string | null
   readonly apiBase: string
+  /** Every dock the service knows, by id, across the knowledge base layers. */
+  readonly docks: ReadonlyMap<string, DockView>
+  /** Whether the service can take docks added by the user. */
+  readonly kbWritable: boolean
   start(): void
   stop(): void
   /** Reconnects immediately, resetting the backoff. */
   retry(): void
+  /** Adds a dock to the user's own knowledge base and re-reads the machine. Rejects with the service's reason. */
+  addDock(entry: DockEntry): Promise<DockView>
+  /** Forgets one of the user's own docks and re-reads the machine. */
+  forgetDock(id: string): Promise<void>
 }
 
 export const POLL_INTERVAL_MS = 5_000
@@ -89,6 +97,8 @@ export function createLive(apiBase: string, streamUrl: string, deps: LiveDeps = 
   let timeline = $state.raw<TimelineEntry[]>([])
   let error = $state.raw<string | null>(null)
   let capturedAt = $state.raw<string | null>(null)
+  let docks = $state.raw<ReadonlyMap<string, DockView>>(new Map())
+  let kbWritable = $state.raw(false)
 
   let running = false
   /** Increments per /topology request, so a stale response can be ignored. */
@@ -145,6 +155,34 @@ export function createLive(apiBase: string, streamUrl: string, deps: LiveDeps = 
     }
   }
 
+  // The dock list only changes when the knowledge base does, and every
+  // such change is announced as a topology change, so it is read with
+  // the topology rather than on its own timer. A failure here is not the
+  // user's problem: the diagram still draws, only the cable judgement goes.
+  const refreshDocks = async (): Promise<void> => {
+    try {
+      const res = await client.docks()
+      if (!running) return
+      docks = new Map(res.docks.map((d) => [d.id, d]))
+      kbWritable = res.writable
+    } catch {
+      // Left as last seen.
+    }
+  }
+
+  const addDock = async (entry: DockEntry): Promise<DockView> => {
+    const res = await client.createDock(entry)
+    // The service broadcasts the change too; refreshing here covers the
+    // polling case and makes the box appear before the next poll.
+    await Promise.all([refreshDocks(), refreshTopology()])
+    return res.dock
+  }
+
+  const forgetDock = async (id: string): Promise<void> => {
+    await client.deleteDock(id)
+    await Promise.all([refreshDocks(), refreshTopology()])
+  }
+
   const refreshThroughput = async (): Promise<void> => {
     if (!capabilities?.throughput) return
     try {
@@ -197,6 +235,7 @@ export function createLive(apiBase: string, streamUrl: string, deps: LiveDeps = 
 
   const onTopologyChanged = async (at: string, data: TopologyChangedData): Promise<void> => {
     const previous = index
+    void refreshDocks()
     await refreshTopology()
     if (!running) return
     const resolve = (id: string): string | null => nameForId(index, id) ?? nameForId(previous, id)
@@ -278,6 +317,7 @@ export function createLive(apiBase: string, streamUrl: string, deps: LiveDeps = 
     running = true
     setState('connecting')
     void refreshCapabilities()
+    void refreshDocks()
     void refreshTopology().then((ok) => {
       // If the socket has not opened by the time the first fetch returns,
       // reflect what we know so the UI is never stuck on "connecting".
@@ -328,9 +368,13 @@ export function createLive(apiBase: string, streamUrl: string, deps: LiveDeps = 
     get timeline() { return timeline },
     get error() { return error },
     get capturedAt() { return capturedAt },
+    get docks() { return docks },
+    get kbWritable() { return kbWritable },
     apiBase: client.base,
     start,
     stop,
     retry,
+    addDock,
+    forgetDock,
   }
 }

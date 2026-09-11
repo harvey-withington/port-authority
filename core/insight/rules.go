@@ -18,6 +18,8 @@ func DefaultRules() []Rule {
 		{ID: "power-budget", Evaluate: rulePowerBudget},
 		{ID: "iso-reservation-squeeze", Evaluate: ruleIsoReservationSqueeze},
 		{ID: "usb4-device-well-placed", Evaluate: ruleUSB4DeviceWellPlaced},
+		{ID: "usb4-link-below-max", Evaluate: ruleUSB4LinkBelowMax},
+		{ID: "dock-not-recognised", Evaluate: ruleDockNotRecognised},
 	}
 }
 

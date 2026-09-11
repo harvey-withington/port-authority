@@ -375,3 +375,40 @@ code, .mono {
   .flash { animation: none; }
   * { scroll-behavior: auto !important; }
 }
+
+/* Buttons that act, in dialogs and on cards. Segmented controls and icon
+   buttons style themselves; these are the ones with words on them. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-surface);
+  color: var(--text-strong);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  line-height: 1.6;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--border-hover);
+  background: var(--bg-subtle-hover);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.btn.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--on-color);
+}
+.btn.primary:hover:not(:disabled) {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+.btn.primary.danger {
+  border-color: var(--danger);
+  background: var(--danger);
+}

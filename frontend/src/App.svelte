@@ -5,11 +5,12 @@
   import { browserDiscovery, isWailsHost, pollStatus, type Discovered } from './lib/discover'
   import { createLive, type LiveStore } from './lib/live.svelte'
   import { flaggedDevices } from './lib/insights'
-  import { ancestorIds } from './lib/topology'
+  import { ancestorIds, type DeviceIndex } from './lib/topology'
   import { emptyThroughput } from './lib/throughput'
   import type { TreeContext } from './lib/tree'
   import { expanded } from './lib/expanded.svelte'
   import { focus } from './lib/focus.svelte'
+  import { findingFilter } from './lib/findingFilter.svelte'
   import { view } from './lib/view.svelte'
   import { layout, MAX_DIAGRAM_SHARE, MIN_DIAGRAM_SHARE } from './lib/layout.svelte'
   import { relativeTime } from './lib/format'
@@ -25,9 +26,11 @@
   import TopologyGraph from './components/TopologyGraph.svelte'
   import TopologyTree from './components/TopologyTree.svelte'
   import InsightList from './components/InsightList.svelte'
+  import FindingsFilter from './components/FindingsFilter.svelte'
   import Timeline from './components/Timeline.svelte'
   import Pane from './components/Pane.svelte'
   import PaneSplitter from './components/PaneSplitter.svelte'
+  import DockDialogs from './components/DockDialogs.svelte'
 
   let discovered = $state.raw<Discovered | null>(null)
   let startError = $state<string | null>(null)
@@ -65,10 +68,14 @@
 
   const appName = $derived(discovered?.appName ?? t('app.name'))
   const flagged = $derived<ReadonlyMap<string, Severity>>(live ? flaggedDevices(live.insights) : new Map())
+  // A snippet is its own function, so the `live` narrowing above does not
+  // reach into it; the index it needs is read here instead.
+  const deviceIndex = $derived<DeviceIndex>(live?.index ?? new Map())
   const ctx = $derived<TreeContext>({
     flagged,
     throughput: live?.throughput ?? emptyThroughput(),
     showMeter: live?.capabilities?.throughput ?? false,
+    docks: live?.docks,
   })
 
   function focusDevice(id: string): void {
@@ -139,7 +146,16 @@
       {#if layout.panelsOpen}
         <div class="below" id="pane-panels" style:flex="{1 - layout.diagramShare} 1 0">
           <Pane id="found" title={t('pane.found')}>
-            <InsightList insights={live.insights} index={live.index} onFocusDevice={focusDevice} />
+            {#snippet controls()}
+              <FindingsFilter {flagged} index={deviceIndex} />
+            {/snippet}
+            <InsightList
+              insights={live.insights}
+              index={live.index}
+              filter={findingFilter.current}
+              onFocusDevice={focusDevice}
+              onClearFilter={() => findingFilter.clear()}
+            />
           </Pane>
           <Pane id="changed" title={t('pane.changed')}>
             <Timeline entries={live.timeline} index={live.index} onFocusDevice={focusDevice} />
@@ -152,6 +168,7 @@
       {#if live.capturedAt}<span>{t('footer.captured', { when: relativeTime(live.capturedAt) })}</span>{/if}
       <span class="mono">{t('footer.api', { base: live.apiBase })}</span>
     </footer>
+    <DockDialogs {live} />
   </div>
 {/if}
 

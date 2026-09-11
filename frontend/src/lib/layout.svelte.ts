@@ -64,4 +64,10 @@ export const layout = {
     panelsOpen = !panelsOpen
     save(PANELS_KEY, String(panelsOpen))
   },
+  /** Shows the panels if they are hidden: something below wants to be read. */
+  openPanels(): void {
+    if (panelsOpen) return
+    panelsOpen = true
+    save(PANELS_KEY, 'true')
+  },
 }

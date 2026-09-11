@@ -1,26 +1,32 @@
 <script lang="ts">
-  import { ChevronDown, ChevronRight, CircleAlert, Info, OctagonAlert } from 'lucide-svelte'
+  import { ChevronDown, ChevronRight } from 'lucide-svelte'
   import type { Insight } from '../lib/api/types'
   import type { DeviceIndex } from '../lib/topology'
   import { formatConfidence } from '../lib/format'
   import { insightKey } from '../lib/insights'
   import { findings } from '../lib/findings.svelte'
+  import { dockEditor } from '../lib/dockEditor.svelte'
+  import { flash } from '../lib/actions'
   import { t } from '../lib/i18n.svelte'
   import DeviceName from './DeviceName.svelte'
+  import SeverityIcon from './SeverityIcon.svelte'
 
   interface Props {
     insight: Insight
     index: DeviceIndex
     onFocusDevice: (id: string) => void
+    /** Changes to a new value when a flag asks for this finding; the card flashes. */
+    flashToken?: number | null
+    /** Whether the flash also scrolls the card into view. */
+    scrollOnFlash?: boolean
   }
 
-  let { insight, index, onFocusDevice }: Props = $props()
+  let { insight, index, onFocusDevice, flashToken = null, scrollOnFlash = true }: Props = $props()
 
   let open = $state(false)
 
   const deviceIds = $derived(insight.device_ids ?? [])
   const evidence = $derived(insight.evidence ?? [])
-  const Icon = $derived(insight.severity === 'critical' ? OctagonAlert : insight.severity === 'warning' ? CircleAlert : Info)
 
   // Folding a finding down to its headline, so a list of them can be read
   // one at a time. Kept apart from `open`, which is the evidence inside.
@@ -30,10 +36,15 @@
   const foldLabel = $derived(shown ? t('insight.fold', { name: insight.title }) : t('insight.unfold', { name: insight.title }))
 </script>
 
-<article class="card sev-{insight.severity}" class:folded={!shown} style:--stripe={`var(--severity-${insight.severity})`}>
+<article
+  class="card sev-{insight.severity}"
+  class:folded={!shown}
+  style:--stripe={`var(--severity-${insight.severity})`}
+  use:flash={{ token: flashToken, scroll: scrollOnFlash }}
+>
   <header>
-    <span class="icon" aria-label={t(`insight.severity.${insight.severity}`)} title={t(`insight.severity.${insight.severity}`)}>
-      <Icon size={16} />
+    <span class="icon" role="img" aria-label={t(`insight.severity.${insight.severity}`)} title={t(`insight.severity.${insight.severity}`)}>
+      <SeverityIcon severity={insight.severity} />
     </span>
     <h3>
       <button class="fold" aria-expanded={shown} aria-controls={bodyId} title={foldLabel} onclick={() => findings.toggle(key)}>
@@ -56,6 +67,10 @@
           <DeviceName {id} {index} onFocus={onFocusDevice} />
         {/each}
       </p>
+    {/if}
+    {#if insight.rule_id === 'dock-not-recognised'}
+      <!-- The one finding the user can act on inside the app: the fix is a form, not a cable. -->
+      <button class="btn primary action" onclick={() => dockEditor.setup(insight)}>{t('dock.setup.open')}</button>
     {/if}
     <button class="details-toggle" aria-expanded={open} onclick={() => (open = !open)}>
       {#if open}<ChevronDown size={13} />{:else}<ChevronRight size={13} />{/if}
@@ -166,6 +181,9 @@
   }
   .label {
     color: var(--text-muted);
+  }
+  .action {
+    margin-top: var(--space-3);
   }
   .details-toggle {
     margin-top: var(--space-2);

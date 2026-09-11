@@ -3,6 +3,7 @@
   import type { USB4Router } from '../lib/api/types'
   import { USB4_ROUTER_SPEED, speedColorVar } from '../lib/colors'
   import { linkLabel } from '../lib/format'
+  import { routerSpeed } from '../lib/graph'
   import { t } from '../lib/i18n.svelte'
   import { routerName } from '../lib/topology'
 
@@ -33,6 +34,9 @@
               <div class="name">{routerName(router)}</div>
               <div class="meta">
                 <span>{t(`tree.usb4.${router.kind}`)}</span>
+                {#if router.kind === 'device'}
+                  <span style:color={speedColorVar(routerSpeed(router))}>{linkLabel(routerSpeed(router))}</span>
+                {/if}
                 <span class="mono">{router.vendor_id.toString(16).padStart(4, '0')}:{router.product_id.toString(16).padStart(4, '0')}</span>
               </div>
               {#if router.children?.length}

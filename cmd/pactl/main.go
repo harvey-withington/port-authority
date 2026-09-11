@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"portauthority/core/enrich"
+	"portauthority/core/kb"
 	"portauthority/core/model"
 	"portauthority/core/provider"
 	"portauthority/core/provider/mock"
@@ -27,6 +28,12 @@ func main() {
 	}
 	cmd, args := os.Args[1], os.Args[2:]
 	var err error
+	// Every command sees the user's own docks; serve can point elsewhere.
+	if dir, derr := kb.DefaultLocalDir(); derr == nil {
+		if lerr := kb.UseLocalDir(dir); lerr != nil {
+			fmt.Fprintf(os.Stderr, "pactl: local knowledge base in %s not loaded: %v\n", dir, lerr)
+		}
+	}
 	switch cmd {
 	case "snapshot":
 		err = runSnapshot(args)

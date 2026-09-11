@@ -3,10 +3,7 @@ import type { Device, Enclosure, Topology } from './api/types'
 import { buildPhysical, enclosureIdOf, memberIds, type PhysicalNode } from './physical'
 import { layoutGraph, layoutPhysical } from './graph'
 import { emptyThroughput } from './throughput'
-import { connector, controller, device, hub, port, topology } from './fixtures.test-helpers'
-
-const HOST: Enclosure = { id: 'host', kind: 'host' }
-const DOCK: Enclosure = { id: 'dock:caldigit-ts4:1', kind: 'dock', name: 'CalDigit TS4', dock_id: 'caldigit-ts4' }
+import { DOCK, HOST, connector, controller, device, dockedTopology, dockedTopologyWithUsb4, hub, port, topology } from './fixtures.test-helpers'
 
 const allOpen = (): boolean => true
 
@@ -18,54 +15,6 @@ function findNode(roots: PhysicalNode[], id: string): PhysicalNode | null {
     if (found) return found
   }
   return null
-}
-
-/**
- * The shape Windows reports for a laptop with a TS4 attached: the dock's
- * USB 2 half hangs off one controller and its USB 3 half off another, so
- * the same physical dock appears as two chains reached by two cables.
- */
-function dockedTopology(): Topology {
-  const keyboard = device({ id: 'USB\\KEYBOARD', class: 'hid', description: 'Keyboard' })
-  const ssd = device({ id: 'USB\\SSD', class: 'storage', product_name: 'EX400U' })
-
-  const usb2Inner = device({
-    id: 'USB\\TS4_USB2_B', class: 'hub', enclosure: DOCK,
-    hub: hub([port(1, keyboard), port(2, undefined)]),
-  })
-  const usb2Top = device({
-    id: 'USB\\TS4_USB2_A', class: 'hub', enclosure: DOCK,
-    hub: hub([port(1, usb2Inner)]),
-  })
-  const usb3Inner = device({
-    id: 'USB\\TS4_USB3_B', class: 'hub', enclosure: DOCK,
-    hub: hub([port(1, ssd), port(2, undefined)]),
-  })
-  const usb3Top = device({
-    id: 'USB\\TS4_USB3_A', class: 'hub', enclosure: DOCK,
-    hub: hub([port(1, usb3Inner)]),
-  })
-
-  const camera = device({ id: 'USB\\CAMERA', class: 'video', description: 'Integrated Camera' })
-  const root1 = device({
-    id: 'USB\\ROOT1', class: 'hub', enclosure: HOST,
-    // The dock's USB 2 uplink: same hole in the chassis as root2 port 1,
-    // but only 480 Mbps.
-    hub: hub([port(1, usb2Top, { negotiated_link: 'high', max_link: 'high', connector: connector(true) })], { kind: 'root', depth: 0 }),
-  })
-  const root2 = device({
-    id: 'USB\\ROOT2', class: 'hub', enclosure: HOST,
-    hub: hub([
-      port(1, usb3Top, { connector: connector(true) }),
-      port(2, camera, { connector: { type_c: false, user_connectable: false, multiple_companions: false } }),
-      port(3, undefined, { connector: connector(false) }),
-    ], { kind: 'root', depth: 0 }),
-  })
-
-  return topology([
-    controller(root1, { id: 'PCI\\CTRL1' }),
-    controller(root2, { id: 'PCI\\CTRL2' }),
-  ])
 }
 
 describe('enclosureIdOf', () => {
@@ -228,6 +177,18 @@ describe('the USB4 fabric in the physical view', () => {
     expect(layout.edges.some((e) => e.from === 'USB4\SSD' && e.to.includes('carried'))).toBe(true)
   })
 
+  it('names the computer after itself when the provider says who it is', () => {
+    const named = { ...withRouters(), host: { name: 'DEVIANT', manufacturer: 'Lenovo', model: 'Yoga Pro 9 16IRP8' } }
+    const layout = layoutPhysical(named, { isExpanded: allOpen, throughput: emptyThroughput() })
+    const computer = layout.nodes.find((n) => n.id === 'host')
+    expect(computer?.enclosure?.name).toBe('DEVIANT')
+    expect(computer?.hostModel).toBe('Lenovo Yoga Pro 9 16IRP8')
+    // The snapshot's own enclosure object is left alone.
+    expect(named.controllers[0].root_hub?.enclosure?.name).toBeUndefined()
+    const anonymous = layoutPhysical(withRouters(), { isExpanded: allOpen, throughput: emptyThroughput() })
+    expect(anonymous.nodes.find((n) => n.id === 'host')?.enclosure?.name).toBeUndefined()
+  })
+
   it('folds the computer\u2019s own host routers into it rather than drawing them', () => {
     const layout = layoutPhysical(withRouters(), { isExpanded: allOpen, throughput: emptyThroughput() })
     expect(layout.nodes.map((n) => n.id)).not.toContain('USB4\HOST')
@@ -238,5 +199,58 @@ describe('the USB4 fabric in the physical view', () => {
     const layout = layoutGraph(withRouters(), { isExpanded: allOpen, throughput: emptyThroughput() })
     expect(layout.nodes.map((n) => n.id)).toContain('USB4\HOST')
     expect(layout.edges.find((e) => e.to === 'USB4\SSD')?.from).toBe('USB4\HOST')
+  })
+
+  it('folds a dock’s own router into the dock and hangs a USB4 SSD off the dock', () => {
+    const layout = layoutPhysical(dockedTopologyWithUsb4(), { isExpanded: allOpen, throughput: emptyThroughput() })
+    expect(layout.nodes.map((n) => n.id)).not.toContain('USB4\\TS4')
+    expect(layout.nodes.find((n) => n.id === DOCK.id)?.dockRouter?.id).toBe('USB4\\TS4')
+    // One cable to the dock, and it is the USB4 one at the speed the
+    // router negotiated; the USB tunnel's 10 Gbps stays on the box's badge.
+    // With no knowledge base entry to judge it against, its health is unjudged.
+    const cables = layout.edges.filter((e) => e.to === DOCK.id)
+    expect(cables).toHaveLength(1)
+    expect(cables[0].from).toBe('host')
+    expect(cables[0].speed).toBe('usb4_20')
+    expect(cables[0].health).toBe('idle')
+    expect(layout.edges.find((e) => e.to === 'USB4\\SSD')?.from).toBe(DOCK.id)
+    expect(layout.edges.some((e) => e.from === 'USB4\\SSD' && e.to.includes('carried'))).toBe(true)
+    expect(layout.nodes.find((n) => n.id === 'host')?.hostRouters).toBe(1)
+  })
+
+  it('judges the dock cable against what the knowledge base says the dock can do', () => {
+    const docks = new Map([[DOCK.dock_id ?? '', { id: DOCK.dock_id ?? '', name: 'CalDigit TS4', source: 'shipped' as const, hubs: [], uplink: { kind: 'thunderbolt4', max_link: 'usb4_40' as const } }]])
+    const layout = layoutPhysical(dockedTopologyWithUsb4(), { isExpanded: allOpen, throughput: emptyThroughput(), docks })
+    const cable = layout.edges.find((e) => e.to === DOCK.id)
+    expect(cable?.speed).toBe('usb4_20')
+    expect(cable?.max).toBe('usb4_40')
+    expect(cable?.health).toBe('slow')
+  })
+
+  it('assumes 40 Gbps for a router whose link the provider did not read', () => {
+    const t = dockedTopologyWithUsb4()
+    const routers = (t.usb4 ?? []).map((r) => ({ ...r, negotiated_link: undefined }))
+    const layout = layoutPhysical({ ...t, usb4: routers }, { isExpanded: allOpen, throughput: emptyThroughput() })
+    expect(layout.edges.find((e) => e.to === DOCK.id)?.speed).toBe('usb4_40')
+  })
+
+  it('hides what a collapsed dock carries over USB4 and counts it', () => {
+    const layout = layoutPhysical(dockedTopologyWithUsb4(), { isExpanded: (id) => id !== DOCK.id, throughput: emptyThroughput() })
+    expect(layout.nodes.map((n) => n.id)).not.toContain('USB4\\SSD')
+    // The keyboard and USB SSD behind the dock, plus the USB4 SSD and its disk.
+    expect(layout.nodes.find((n) => n.id === DOCK.id)?.hiddenCount).toBe(4)
+  })
+
+  it('draws a router on its own when the box it names is not in the snapshot', () => {
+    const layout = layoutPhysical(dockedTopologyWithUsb4('dock:other:1'), { isExpanded: allOpen, throughput: emptyThroughput() })
+    expect(layout.nodes.map((n) => n.id)).toContain('USB4\\TS4')
+    expect(layout.edges.find((e) => e.to === DOCK.id)?.speed).toBe('ss10')
+    expect(layout.edges.find((e) => e.to === 'USB4\\SSD')?.from).toBe('USB4\\TS4')
+  })
+
+  it('leaves the logical view alone: a dock router is still a router there', () => {
+    const layout = layoutGraph(dockedTopologyWithUsb4(), { isExpanded: allOpen, throughput: emptyThroughput() })
+    expect(layout.nodes.map((n) => n.id)).toContain('USB4\\TS4')
+    expect(layout.nodes.find((n) => n.id === DOCK.id)).toBeUndefined()
   })
 })

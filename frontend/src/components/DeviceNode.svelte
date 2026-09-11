@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ChevronDown, ChevronRight, TriangleAlert } from 'lucide-svelte'
+  import { ChevronDown, ChevronRight } from 'lucide-svelte'
   import type { Device, Port } from '../lib/api/types'
   import type { TreeContext } from '../lib/tree'
   import { childEntries, deviceName } from '../lib/topology'
@@ -17,6 +17,7 @@
   import PortSocket from './PortSocket.svelte'
   import ThroughputMeter from './ThroughputMeter.svelte'
   import DeviceNode from './DeviceNode.svelte'
+  import FlagBadge from './FlagBadge.svelte'
 
   interface Props {
     device: Device
@@ -71,7 +72,7 @@
           <LinkBadge negotiated={port.negotiated_link} max={port.max_link} claimed={device.claimed_speed} />
         {/if}
         {#if severity}
-          <span class="flag sev-{severity}" title={t('tree.flagged')}><TriangleAlert size={13} aria-label={t('tree.flagged')} /></span>
+          <FlagBadge {severity} ids={[device.id]} {name} />
         {/if}
       </div>
       <div class="meta">
@@ -153,9 +154,6 @@
   .name {
     font-weight: 600;
     color: var(--text-strong);
-  }
-  .flag {
-    display: inline-flex;
   }
   .meta {
     display: flex;

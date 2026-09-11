@@ -1,5 +1,6 @@
-// scrubfixture replaces device serial numbers in topology fixtures with
-// stable placeholders so captured snapshots can be published.
+// scrubfixture replaces device serial numbers and the machine's name in
+// topology fixtures with stable placeholders so captured snapshots can be
+// published.
 //
 //	go run ./tools/scrubfixture [-dry] testdata/fixtures/*.json
 //
@@ -8,6 +9,11 @@
 // like "5&270C603&0&4". Every occurrence in the file is replaced textually,
 // so formatting and key order are preserved. Replacements are numbered in
 // sorted order of the originals, so re-running is a no-op.
+//
+// The host name (host.name) is replaced in place, not file-wide: a short
+// name such as "PC" would otherwise be rewritten inside every string that
+// happens to contain it. The make and model stay; they describe hardware,
+// not a person.
 package main
 
 import (
@@ -24,8 +30,13 @@ import (
 // "7&1B27237F&0&3" (USB) or "3&11583659&1&A0" (PCI, hex function).
 var busPosition = regexp.MustCompile(`^\d+&[0-9A-Fa-f]+&\d+&[0-9A-Fa-f]+$`)
 
-// placeholder matches values this tool has already written.
-var placeholder = regexp.MustCompile(`^SCRUBBED-\d+$`)
+// placeholder matches values this tool has already written, including an
+// instance segment that keeps its prefix around one ("MSFT30SCRUBBED-06"),
+// so a second run leaves a scrubbed file alone.
+var placeholder = regexp.MustCompile(`SCRUBBED-\d+$`)
+
+// hostPlaceholder replaces the machine's name.
+const hostPlaceholder = "SCRUBBED-HOST"
 
 func main() {
 	dry := flag.Bool("dry", false, "report what would change without writing")
@@ -36,26 +47,40 @@ func main() {
 	}
 	exit := 0
 	for _, path := range flag.Args() {
-		n, err := scrubFile(path, *dry)
+		n, host, err := scrubFile(path, *dry)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", path, err)
 			exit = 1
 			continue
 		}
-		fmt.Printf("%s: %d serial(s) scrubbed\n", path, n)
+		hostNote := ""
+		if host {
+			hostNote = ", host name scrubbed"
+		}
+		fmt.Printf("%s: %d serial(s) scrubbed%s\n", path, n, hostNote)
 	}
 	os.Exit(exit)
 }
 
-func scrubFile(path string, dry bool) (int, error) {
+// scrubFile returns how many serials were replaced and whether the host
+// name was.
+func scrubFile(path string, dry bool) (int, bool, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
-		return 0, err
+		return 0, false, err
 	}
 	var doc any
 	if err := json.Unmarshal(raw, &doc); err != nil {
-		return 0, fmt.Errorf("parse: %w", err)
+		return 0, false, fmt.Errorf("parse: %w", err)
 	}
+	out, host, err := scrubHost(string(raw), doc)
+	if err != nil {
+		return 0, false, err
+	}
+	if dry && host {
+		fmt.Printf("  host name -> %s\n", hostPlaceholder)
+	}
+
 	serials := map[string]bool{}
 	collect(doc, serials)
 
@@ -75,9 +100,6 @@ func scrubFile(path string, dry bool) (int, error) {
 		ordered = append(ordered, s)
 	}
 	sort.Strings(ordered)
-	if len(ordered) == 0 {
-		return 0, nil
-	}
 
 	// Replace longest first so one serial that contains another is handled
 	// as a whole.
@@ -87,7 +109,6 @@ func scrubFile(path string, dry bool) (int, error) {
 	for i, s := range ordered {
 		index[s] = i + 1
 	}
-	out := string(raw)
 	for _, s := range byLength {
 		out = strings.ReplaceAll(out, s, fmt.Sprintf("SCRUBBED-%02d", index[s]))
 	}
@@ -95,12 +116,48 @@ func scrubFile(path string, dry bool) (int, error) {
 		for _, s := range ordered {
 			fmt.Printf("  %s -> SCRUBBED-%02d\n", s, index[s])
 		}
-		return len(ordered), nil
+		return len(ordered), host, nil
 	}
 	if out == string(raw) {
-		return 0, nil
+		return 0, false, nil
 	}
-	return len(ordered), os.WriteFile(path, []byte(out), 0o644)
+	return len(ordered), host, os.WriteFile(path, []byte(out), 0o644)
+}
+
+// hostNameField finds `"name": "<value>"` as it appears in the file.
+var hostNameField = regexp.MustCompile(`"name"\s*:\s*"((?:[^"\\]|\\.)*)"`)
+
+// scrubHost replaces host.name in the raw text, leaving everything else
+// as written. It edits the first "name" pair after the "host" key, which
+// is the host object's own since the object is small and name comes first
+// as the provider writes it.
+func scrubHost(raw string, doc any) (string, bool, error) {
+	top, ok := doc.(map[string]any)
+	if !ok {
+		return raw, false, nil
+	}
+	host, ok := top["host"].(map[string]any)
+	if !ok {
+		return raw, false, nil
+	}
+	name, ok := host["name"].(string)
+	if !ok || name == "" || name == hostPlaceholder {
+		return raw, false, nil
+	}
+	start := strings.Index(raw, `"host"`)
+	if start < 0 {
+		return raw, false, fmt.Errorf("host object not found in the text")
+	}
+	loc := hostNameField.FindStringSubmatchIndex(raw[start:])
+	if loc == nil {
+		return raw, false, fmt.Errorf("host name not found in the text")
+	}
+	valueStart, valueEnd := start+loc[2], start+loc[3]
+	var decoded string
+	if err := json.Unmarshal([]byte(`"`+raw[valueStart:valueEnd]+`"`), &decoded); err != nil || decoded != name {
+		return raw, false, fmt.Errorf("host name in the text (%q) does not match the parsed value (%q)", raw[valueStart:valueEnd], name)
+	}
+	return raw[:valueStart] + hostPlaceholder + raw[valueEnd:], true, nil
 }
 
 // collect walks the document gathering serial-like values.

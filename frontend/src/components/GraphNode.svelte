@@ -1,11 +1,13 @@
 <script lang="ts">
-  import { ChevronDown, ChevronRight, Cpu, Dock, HardDrive, Laptop, LoaderCircle, TriangleAlert, Zap } from 'lucide-svelte'
+  import { ChevronDown, ChevronRight, Cpu, Dock, HardDrive, Laptop, LoaderCircle, Zap } from 'lucide-svelte'
   import type { GraphNode } from '../lib/graph'
   import type { Severity } from '../lib/api/types'
   import type { TreeContext } from '../lib/tree'
-  import { childEntries, deviceName, routerName } from '../lib/topology'
-  import { sameId } from '../lib/ids'
-  import { linkBitrate } from '../lib/link'
+  import { childEntries } from '../lib/topology'
+  import { normalizeId, sameId } from '../lib/ids'
+  import { linkBitrate, isLinkKnown } from '../lib/link'
+  import { dockUplinkMax, routerSpeed } from '../lib/graph'
+  import { graphNodeName } from '../lib/graphNames'
   import { USB4_ROUTER_SPEED, classToken, speedColorVar } from '../lib/colors'
   import { formatBitrate, formatThroughput, linkLabel } from '../lib/format'
   import { expanded } from '../lib/expanded.svelte'
@@ -15,6 +17,9 @@
   import ClassIcon from './ClassIcon.svelte'
   import LinkBadge from './LinkBadge.svelte'
   import SocketStrip from './SocketStrip.svelte'
+  import FlagBadge from './FlagBadge.svelte'
+  import BoxTag from './BoxTag.svelte'
+  import GraphNodeMeta from './GraphNodeMeta.svelte'
 
   interface Props {
     node: GraphNode
@@ -38,23 +43,26 @@
   const collapsible = $derived(isBox ? childCount > 0 : isDevice && device?.hub !== undefined && childCount > 0)
   const toggleId = $derived(isBox ? node.id : device?.id)
   const open = $derived(toggleId ? expanded.isExpanded(toggleId) : true)
-  const name = $derived(
-    node.kind === 'controller' ? (node.controller?.name ?? '')
-      : node.kind === 'router' ? (node.router ? routerName(node.router) : '')
-        : node.kind === 'carried' ? (node.label ?? '')
-          : isBox ? (node.enclosure?.name || (boxKind === 'host' ? t('box.host') : device ? deviceName(device) : t('box.unknown')))
-            : device ? deviceName(device) : '',
-  )
+  const name = $derived(graphNodeName(node))
 
   // Insights can name hub-tree devices or USB4 routers; both ids are
   // normalised PnP ids. A box wears the worst flag of anything folded into
-  // it, so a warning about a dock's third hub still shows on the dock.
+  // it, so a warning about a dock's third hub still shows on the dock, and
+  // its flag stands for every flagged member.
   const RANK: Record<Severity, number> = { info: 0, warning: 1, critical: 2 }
   const flaggable = $derived(isDevice || node.kind === 'router')
+  // A dock's own router is part of the box too: a finding about the
+  // dock's cable names the router, and the box is where that shows.
+  const dockRouterId = $derived(node.dockRouter ? normalizeId(node.dockRouter.id) : null)
+  const flaggedIds = $derived.by((): string[] => {
+    if (!isBox) return flaggable && ctx.flagged.has(node.id) ? [node.id] : []
+    const ids = members.filter((id) => ctx.flagged.has(id))
+    if (dockRouterId && ctx.flagged.has(dockRouterId)) ids.push(dockRouterId)
+    return ids
+  })
   const severity = $derived.by((): Severity | null => {
-    if (!isBox) return flaggable ? (ctx.flagged.get(node.id) ?? null) : null
     let worst: Severity | null = null
-    for (const id of members) {
+    for (const id of flaggedIds) {
       const found = ctx.flagged.get(id)
       if (found && (worst === null || RANK[found] > RANK[worst])) worst = found
     }
@@ -62,7 +70,7 @@
   })
   const focusId = $derived(device?.id ?? node.router?.id ?? null)
   const focused = $derived.by(() => {
-    if (isBox) return members.some((id) => sameId(focus.id, id))
+    if (isBox) return members.some((id) => sameId(focus.id, id)) || sameId(focus.id, dockRouterId)
     return focusId !== null && sameId(focus.id, focusId)
   })
   const flashToken = $derived(focused ? focus.token : null)
@@ -82,6 +90,17 @@
   const trafficPct = $derived(capacity > 0 ? Math.min(100, Math.round((node.bps / capacity) * 100)) : 0)
   const trafficTitle = $derived(t('graph.node.traffic', { rate: formatThroughput(node.bps), percent: `${trafficPct}%`, link: capacityLabel }))
   const trafficColor = $derived(node.kind === 'controller' ? 'var(--accent-light)' : speedColorVar(uplinkSpeed))
+
+  // A dock on a USB4 cable wears the cable's speed next to the USB tunnel
+  // inside it, so the smaller number does not read as the dock being slow.
+  // The cable is judged against what the knowledge base says the dock's
+  // uplink can do; with no expectation it is shown as it is.
+  const cableSpeed = $derived(node.dockRouter ? routerSpeed(node.dockRouter) : USB4_ROUTER_SPEED)
+  const cableMax = $derived.by(() => {
+    const max = dockUplinkMax(node.enclosure, ctx.docks)
+    return isLinkKnown(max) ? max : cableSpeed
+  })
+  const usb4Hint = $derived(t('box.usb4.hint', { link: linkLabel(cableSpeed), tunnel: linkLabel(uplinkSpeed) }))
 
   const sockets = $derived(node.sockets)
   const hiddenLabel = $derived(node.hiddenCount === 1 ? t('graph.hidden.one') : t('graph.hidden', { n: node.hiddenCount }))
@@ -123,14 +142,17 @@
   <div class="main">
     <div class="name-line">
       <span class="name">{name}</span>
+      {#if node.dockRouter}
+        <span class="badge"><LinkBadge negotiated={cableSpeed} max={cableMax} claimed={cableMax} title={usb4Hint} /></span>
+      {/if}
       {#if node.port && device}
         <span class="badge"><LinkBadge negotiated={node.port.negotiated_link} max={node.port.max_link} claimed={device.claimed_speed} /></span>
       {/if}
-      {#if isBox && node.enclosure?.kind === 'dock'}
-        <span class="tag">{t('box.tag.dock')}</span>
+      {#if isBox}
+        <BoxTag enclosure={node.enclosure ?? null} {name} />
       {/if}
       {#if severity}
-        <span class="flag sev-{severity}" title={t('tree.flagged')}><TriangleAlert size={13} aria-label={t('tree.flagged')} /></span>
+        <FlagBadge {severity} ids={flaggedIds} {name} />
       {/if}
       {#if node.incomplete}
         <span class="partial" title={t('graph.incomplete.hint')}>
@@ -138,29 +160,7 @@
         </span>
       {/if}
     </div>
-    <div class="meta">
-      {#if node.kind === 'controller' && node.controller}
-        <span>{t(`tree.controller.kind.${node.controller.kind}`)}</span>
-        {#if device?.hub}<span>{t('tree.hub.ports', { used: childCount, total: device.hub.port_count })}</span>{/if}
-      {:else if node.kind === 'router' && node.router}
-        <span>{t(`tree.usb4.${node.router.kind}`)}</span>
-        <span>{linkLabel(USB4_ROUTER_SPEED)}</span>
-      {:else if node.kind === 'carried'}
-        <span>{t('graph.carried')}</span>
-      {:else if isBox}
-        {#if boxKind === 'host'}
-          <span>{members.length === 1 ? t('box.controllers.one') : t('box.controllers', { n: members.length })}</span>
-          {#if node.hostRouters}<span>{node.hostRouters === 1 ? t('box.usb4.one') : t('box.usb4', { n: node.hostRouters })}</span>{/if}
-        {:else if members.length > 1}
-          <span>{t('box.folded', { n: members.length })}</span>
-        {/if}
-        <span>{node.incomplete ? t('box.sockets.partial', { used: usedSockets }) : t('box.sockets', { used: usedSockets, total: portTotal })}</span>
-      {:else if device}
-        {#if node.port}<span>{t('tree.port', { n: node.port.number })}</span>{/if}
-        {#if device.hub}<span>{t('tree.hub.ports', { used: childCount, total: device.hub.port_count })}</span>{/if}
-        {#if device.iso_reserved > 0}<span>{t('tree.iso', { rate: formatBitrate(device.iso_reserved) })}</span>{/if}
-      {/if}
-    </div>
+    <GraphNodeMeta {node} {childCount} {usedSockets} {portTotal} {boxKind} {members} />
     {#if collapsible && toggleId}
       <button class="toggle" aria-expanded={open} aria-label={toggleLabel} title={toggleLabel} onclick={() => expanded.toggle(toggleId)}>
         {#if open}<ChevronDown size={13} aria-hidden="true" />{:else}<ChevronRight size={13} aria-hidden="true" />{/if}
@@ -237,14 +237,11 @@
     align-items: flex-start;
     padding-top: var(--space-2);
   }
-  /* There is room on a wider card for the counts to wrap rather than clip. */
-  .kind-box .meta {
+  /* A box can wear two badges and a tag; they drop to a second line rather
+     than squeezing the name, since a box's name is what identifies it. */
+  .kind-box .name-line {
     flex-wrap: wrap;
-    white-space: normal;
-    row-gap: 0;
-  }
-  .kind-box .meta span {
-    overflow: visible;
+    row-gap: var(--space-1);
   }
   .kind-carried {
     border-style: dashed;
@@ -275,7 +272,6 @@
     min-width: 0;
   }
   .badge,
-  .flag,
   .partial {
     display: inline-flex;
     flex-shrink: 0;
@@ -287,29 +283,6 @@
   }
   @keyframes spin {
     to { transform: rotate(360deg); }
-  }
-  /* Says the box came from the knowledge base rather than from the bus. */
-  .tag {
-    flex-shrink: 0;
-    padding: 0 5px;
-    border-radius: var(--radius-sm);
-    background: var(--bg-subtle);
-    color: var(--text-muted);
-    font-size: var(--font-size-xs);
-    font-weight: 600;
-    line-height: 1.5;
-  }
-  .meta {
-    display: flex;
-    gap: var(--space-3);
-    color: var(--text-muted);
-    font-size: var(--font-size-xs);
-    white-space: nowrap;
-    overflow: hidden;
-  }
-  .meta span {
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
   /* Bottom-left of the main column, out of the socket strip's way. */
   .toggle {

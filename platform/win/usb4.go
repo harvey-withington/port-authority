@@ -25,15 +25,139 @@ import (
 
 	"golang.org/x/sys/windows"
 
+	"portauthority/core/kb"
 	"portauthority/core/model"
 )
 
 var (
-	procCMGetParent    = modcfgmgr32.NewProc("CM_Get_Parent")
-	procCMGetChild     = modcfgmgr32.NewProc("CM_Get_Child")
-	procCMGetSibling   = modcfgmgr32.NewProc("CM_Get_Sibling")
-	procCMGetDeviceIDW = modcfgmgr32.NewProc("CM_Get_Device_IDW")
+	procCMGetParent           = modcfgmgr32.NewProc("CM_Get_Parent")
+	procCMGetChild            = modcfgmgr32.NewProc("CM_Get_Child")
+	procCMGetSibling          = modcfgmgr32.NewProc("CM_Get_Sibling")
+	procCMGetDeviceIDW        = modcfgmgr32.NewProc("CM_Get_Device_IDW")
+	procCMGetDevNodePropertyW = modcfgmgr32.NewProc("CM_Get_DevNode_PropertyW")
 )
+
+// usb4RouterProps is the property set the inbox USB4 driver
+// (usb4devicerouter.inf) stamps on every router devnode. It is not
+// documented; the keys were found by listing every property on a router
+// (tools/usb4props) and reading the values against the USB4 spec's router
+// and lane adapter configuration spaces, whose field encodings Linux names
+// in drivers/thunderbolt/tb_regs.h. What each pid holds, as observed:
+//
+//	 9  DROM vendor string      "CalDigit, Inc."
+//	10  DROM model string       "TS4"
+//	13  USB vendor id (u16)     the product's USB identity
+//	14  USB product id (u16)
+//	16  USB4 vendor id (u16)    also in the instance id
+//	17  USB4 product id (u16)
+//	18  revision (u16)          also in the hardware id as REV_
+//	20  current link speed      lane adapter CS_1: 0x8 Gen 2, 0x4 Gen 3, 0x2 Gen 4
+//	21  current link width      lane adapter CS_1: 1 single, 2 dual
+//
+// A host router has no upstream link, so 20 and 21 are absent on it.
+var usb4RouterProps = windows.GUID{
+	Data1: 0x5DF7E321, Data2: 0x1C1B, Data3: 0x4CE2,
+	Data4: [8]byte{0xB4, 0xFA, 0x55, 0xF4, 0xA5, 0xBC, 0x2C, 0xB6},
+}
+
+const (
+	usb4PropVendor    uint32 = 9
+	usb4PropModel     uint32 = 10
+	usb4PropUSBVID    uint32 = 13
+	usb4PropUSBPID    uint32 = 14
+	usb4PropRevision  uint32 = 18
+	usb4PropLinkSpeed uint32 = 20
+	usb4PropLinkWidth uint32 = 21
+
+	// DEVPROP_TYPE_* values from devpropdef.h.
+	devPropTypeUint16 uint32 = 0x05
+	devPropTypeUint32 uint32 = 0x07
+	devPropTypeString uint32 = 0x12
+
+	// Lane adapter current link speed encodings.
+	laneSpeedGen2 uint32 = 0x8
+	laneSpeedGen3 uint32 = 0x4
+	laneSpeedGen4 uint32 = 0x2
+)
+
+// devPropKey mirrors DEVPROPKEY.
+type devPropKey struct {
+	fmtid windows.GUID
+	pid   uint32
+}
+
+// devNodeProperty reads one property of a devnode; ok is false when the
+// devnode does not carry it.
+func devNodeProperty(devInst windows.DEVINST, key devPropKey) (typ uint32, data []byte, ok bool) {
+	var size uint32
+	procCMGetDevNodePropertyW.Call(uintptr(devInst), uintptr(unsafe.Pointer(&key)),
+		uintptr(unsafe.Pointer(&typ)), 0, uintptr(unsafe.Pointer(&size)), 0)
+	if size == 0 {
+		return 0, nil, false
+	}
+	data = make([]byte, size)
+	ret, _, _ := procCMGetDevNodePropertyW.Call(uintptr(devInst), uintptr(unsafe.Pointer(&key)),
+		uintptr(unsafe.Pointer(&typ)), uintptr(unsafe.Pointer(&data[0])), uintptr(unsafe.Pointer(&size)), 0)
+	if ret != crSuccess {
+		return 0, nil, false
+	}
+	return typ, data[:size], true
+}
+
+func usb4PropString(devInst windows.DEVINST, pid uint32) string {
+	typ, data, ok := devNodeProperty(devInst, devPropKey{usb4RouterProps, pid})
+	if !ok || typ != devPropTypeString || len(data) < 2 {
+		return ""
+	}
+	u := make([]uint16, len(data)/2)
+	for i := range u {
+		u[i] = uint16(data[2*i]) | uint16(data[2*i+1])<<8
+	}
+	return strings.TrimSpace(windows.UTF16ToString(u))
+}
+
+func usb4PropUint16(devInst windows.DEVINST, pid uint32) uint16 {
+	typ, data, ok := devNodeProperty(devInst, devPropKey{usb4RouterProps, pid})
+	if !ok || typ != devPropTypeUint16 || len(data) < 2 {
+		return 0
+	}
+	return uint16(data[0]) | uint16(data[1])<<8
+}
+
+func usb4PropUint32(devInst windows.DEVINST, pid uint32) (uint32, bool) {
+	typ, data, ok := devNodeProperty(devInst, devPropKey{usb4RouterProps, pid})
+	if !ok || typ != devPropTypeUint32 || len(data) < 4 {
+		return 0, false
+	}
+	return uint32(data[0]) | uint32(data[1])<<8 | uint32(data[2])<<16 | uint32(data[3])<<24, true
+}
+
+// readUSB4Props fills what the router says about itself and its upstream
+// link. Every field is optional: an older driver that lacks the property
+// set leaves the router as the instance id alone describes it.
+func readUSB4Props(devInst windows.DEVINST, r *model.USB4Router) {
+	r.Vendor = usb4PropString(devInst, usb4PropVendor)
+	r.Model = usb4PropString(devInst, usb4PropModel)
+	r.USBVendorID = usb4PropUint16(devInst, usb4PropUSBVID)
+	r.USBProductID = usb4PropUint16(devInst, usb4PropUSBPID)
+	r.Revision = usb4PropUint16(devInst, usb4PropRevision)
+	speed, ok := usb4PropUint32(devInst, usb4PropLinkSpeed)
+	if !ok {
+		return
+	}
+	switch speed {
+	case laneSpeedGen2:
+		r.LinkGen = 2
+	case laneSpeedGen3:
+		r.LinkGen = 3
+	case laneSpeedGen4:
+		r.LinkGen = 4
+	}
+	if width, ok := usb4PropUint32(devInst, usb4PropLinkWidth); ok && (width == 1 || width == 2) {
+		r.LinkLanes = int(width)
+	}
+	r.NegotiatedLink = model.USB4LinkSpeed(r.LinkGen, r.LinkLanes)
+}
 
 const (
 	crSuccess        = 0
@@ -85,6 +209,7 @@ func (w *walker) collectUSB4(t *model.Topology) {
 		if isHost {
 			r.Kind = "host"
 		}
+		readUSB4Props(data.DevInst, r)
 		if parent, err := cmParent(data.DevInst); err != nil {
 			w.warnf("usb4: %s: parent: %v", id, err)
 		} else {
@@ -170,7 +295,7 @@ func (w *walker) usb4TunneledChildren(r *model.USB4Router) []string {
 	if w.pnp == nil {
 		return nil
 	}
-	vendor, product, ok := usb4NameParts(r.Name)
+	vendor, product, ok := kb.ParseUSB4Name(r.Name)
 	if !ok {
 		return nil
 	}
@@ -180,47 +305,13 @@ func (w *walker) usb4TunneledChildren(r *model.USB4Router) []string {
 		if !strings.HasPrefix(upper, `SCSI\`) && !strings.HasPrefix(upper, `NVME\`) && !strings.HasPrefix(upper, `PCI\`) {
 			continue
 		}
-		name := normalizeName(info.displayName())
+		name := kb.NormalizeName(info.displayName())
 		if strings.Contains(name, vendor) && strings.Contains(name, product) {
 			out = append(out, w.pnpLabel(info.InstanceID))
 		}
 	}
 	sort.Strings(out)
 	return out
-}
-
-// usb4NameParts splits "USB4 Router (2.0), Corsair - EX400U" into a
-// normalized vendor token ("corsair") and product token ("ex400u").
-func usb4NameParts(name string) (vendor, product string, ok bool) {
-	_, rest, found := strings.Cut(name, ",")
-	if !found {
-		return "", "", false
-	}
-	v, p, found := strings.Cut(rest, " - ")
-	if !found {
-		return "", "", false
-	}
-	vendorWords := strings.Fields(normalizeName(v))
-	product = strings.TrimSpace(normalizeName(p))
-	if len(vendorWords) == 0 || len(product) < 3 {
-		return "", "", false
-	}
-	return vendorWords[0], product, true
-}
-
-// normalizeName lower-cases and keeps only letters, digits and spaces so
-// "CalDigit. Inc." and "CALDIGIT_INC" compare equal.
-func normalizeName(s string) string {
-	var b strings.Builder
-	for _, r := range strings.ToLower(s) {
-		switch {
-		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
-			b.WriteRune(r)
-		case r == '_' || r == '-' || r == ' ' || r == '.':
-			b.WriteRune(' ')
-		}
-	}
-	return strings.Join(strings.Fields(b.String()), " ")
 }
 
 func (w *walker) pnpLabel(id string) string {

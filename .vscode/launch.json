@@ -2,6 +2,16 @@
   "version": "0.2.0",
   "configurations": [
     {
+      // `wails dev` in the integrated terminal: the window hot-reloads
+      // frontend edits and rebuilds on Go edits. No Go debugger; use
+      // "Desktop app (Go debug)" for that.
+      "name": "Desktop app (live reload)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "wails dev",
+      "cwd": "${workspaceFolder}"
+    },
+    {
       "name": "Desktop app (Go debug)",
       "type": "go",
       "request": "launch",

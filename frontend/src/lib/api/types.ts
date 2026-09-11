@@ -78,6 +78,61 @@ export interface Enclosure {
   /** Set when the knowledge base names the box, e.g. "CalDigit TS4". */
   name?: string
   dock_id?: string
+  /** Which knowledge base layer the dock came from; "local" is the user's own. */
+  source?: KBSource
+}
+
+export type KBSource = 'shipped' | 'shared' | 'local'
+
+export interface DockPort {
+  label: string
+  position: string
+  connector: string
+  max_link: LinkSpeed
+  count: number
+  notes?: string
+}
+
+export interface UplinkSpec {
+  kind: string
+  max_link: LinkSpeed
+}
+
+/** The strings a dock's own USB4 router announces. */
+export interface USB4Spec {
+  vendor: string
+  model: string
+  notes?: string
+}
+
+/** A dock as written in a knowledge base file; also what POST /kb/docks takes. */
+export interface DockEntry {
+  id?: string
+  name: string
+  /** Every logical hub the dock exposes, as lower-case "vid:pid". */
+  hubs: string[]
+  uplink?: UplinkSpec
+  usb4?: USB4Spec
+  ports?: DockPort[]
+  verified?: string
+  notes?: string
+}
+
+export interface DockView extends DockEntry {
+  id: string
+  source: KBSource
+}
+
+export interface DocksResponse {
+  schema_version: number
+  docks: DockView[]
+  local_dir: string
+  writable: boolean
+}
+
+export interface DockCreatedResponse {
+  schema_version: number
+  dock: DockView
 }
 
 export interface Hub {
@@ -154,16 +209,43 @@ export interface USB4Router {
   /** Resolved from the knowledge base: the product, not the bridge silicon. */
   vendor_name?: string
   product_name?: string
+  /** What the router's maker wrote into it: "CalDigit, Inc." / "TS4". */
+  vendor?: string
+  model?: string
+  /** The product's USB identity as the router records it. */
+  usb_vendor_id?: number
+  usb_product_id?: number
+  revision?: number
+  /** The negotiated upstream link: generation (2, 3, 4) over 1 or 2 lanes. */
+  link_gen?: number
+  link_lanes?: number
+  /** link_gen x link_lanes as a speed; absent when either is unknown. */
+  negotiated_link?: LinkSpeed
   kind: USB4RouterKind
   parent_id?: string
   depth: number
   children?: string[]
+  /**
+   * The box this router is the USB4 side of, when the knowledge base
+   * recognises it as a dock's own: the same enclosure id its hubs carry.
+   * Absent for the host router, for a device that is its own box, and
+   * whenever the match would be a guess.
+   */
+  enclosure_id?: string
+}
+
+/** The computer a snapshot was taken on. */
+export interface HostInfo {
+  name?: string
+  manufacturer?: string
+  model?: string
 }
 
 export interface Topology {
   schema_version: number
   captured_at: string
   platform: string
+  host?: HostInfo
   controllers: Controller[]
   usb4?: USB4Router[]
   warnings?: string[]

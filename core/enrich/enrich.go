@@ -4,6 +4,8 @@
 package enrich
 
 import (
+	"strings"
+
 	"portauthority/core/kb"
 	"portauthority/core/model"
 )
@@ -17,6 +19,9 @@ func Annotate(t *model.Topology) {
 		return
 	}
 	annotateEnclosures(t)
+	// After the hubs have their boxes, and even when there are no hubs: a
+	// router's tie is recomputed on every pass, not only when boxes exist.
+	annotateRouterEnclosures(t)
 	annotateRouters(t)
 	t.Walk(func(_ *model.Controller, _ *model.Device, _ *model.Port, d *model.Device) {
 		if d.VendorID == 0 {
@@ -67,12 +72,22 @@ func Annotate(t *model.Topology) {
 func annotateRouters(t *model.Topology) {
 	for i := range t.USB4 {
 		r := &t.USB4[i]
-		known, ok := kb.KnownDeviceByUSB4ID(r.VendorID, r.ProductID)
-		if !ok {
+		if r.ProductName != "" {
 			continue
 		}
-		if r.ProductName == "" {
+		known, ok := kb.KnownDeviceByUSB4ID(r.VendorID, r.ProductID)
+		if !ok && r.USBVendorID != 0 {
+			// The DROM carries the product's USB identity, so a device
+			// listed by its USB id needs no separate router alias.
+			known, ok = kb.KnownDeviceInfo(r.USBVendorID, r.USBProductID)
+		}
+		switch {
+		case ok:
 			r.ProductName = known.Name
+		case r.Kind == "device" && r.Model != "":
+			// What the maker wrote into the router, which beats the
+			// driver's "USB4 Router (1.0), <vendor> - <model>".
+			r.ProductName = strings.TrimSpace(r.Vendor + " " + r.Model)
 		}
 	}
 }

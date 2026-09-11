@@ -60,6 +60,7 @@ func (p *Provider) Snapshot(ctx context.Context) (*model.Topology, error) {
 		SchemaVersion: model.SchemaVersion,
 		CapturedAt:    time.Now(),
 		Platform:      "windows",
+		Host:          hostInfo(),
 	}
 	for i, path := range paths {
 		if err := ctx.Err(); err != nil {

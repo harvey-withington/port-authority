@@ -238,6 +238,90 @@ func TestEnclosureRecomputesGroupingsAlreadyInTheSnapshot(t *testing.T) {
 	}
 }
 
+// ts4Router is the dock's own USB4 router as Windows names it.
+func ts4Router(id string) model.USB4Router {
+	return model.USB4Router{ID: id, Name: "USB4 Router (1.0), CalDigit. Inc. - TS4", VendorID: 0x8087, ProductID: 0x0b26, Kind: "device"}
+}
+
+func TestAnnotateTiesADocksRouterToItsBox(t *testing.T) {
+	topo := &model.Topology{
+		Controllers: []model.Controller{{ID: "c1", RootHub: hub("root", 0, 0, hub("ts4", ts4Vendor, ts4USB3Top))}},
+		USB4: []model.USB4Router{
+			{ID: "host", Name: "USB4 Root Router (1.0)", VendorID: 0x8086, ProductID: 0xe433, Kind: "host"},
+			ts4Router("r1"),
+			{ID: "ssd", Name: "USB4 Router (2.0), Phison - PS2321", VendorID: 0x13fe, ProductID: 0x6900, Kind: "device", ParentID: "r1"},
+		},
+	}
+	Annotate(topo)
+
+	want := encOf(t, topo, "ts4")
+	if want == "" {
+		t.Fatal("the TS4 hub got no enclosure")
+	}
+	if topo.USB4[1].EnclosureID != want {
+		t.Errorf("dock router EnclosureID = %q, want %q", topo.USB4[1].EnclosureID, want)
+	}
+	if topo.USB4[0].EnclosureID != "" || topo.USB4[2].EnclosureID != "" {
+		t.Errorf("host and SSD routers should own no box: %q %q", topo.USB4[0].EnclosureID, topo.USB4[2].EnclosureID)
+	}
+}
+
+func TestAnnotateTiesARouterByItsDROMStringsAndStampsTheSource(t *testing.T) {
+	// A provider that read the router's own strings needs no name parsing,
+	// and the box says which layer the dock came from.
+	router := model.USB4Router{ID: "r1", Name: "USB4 Router", VendorID: 0x8087, ProductID: 0x0b26, Kind: "device", Vendor: "CalDigit, Inc.", Model: "TS4"}
+	topo := &model.Topology{
+		Controllers: []model.Controller{{ID: "c1", RootHub: hub("root", 0, 0, hub("ts4", ts4Vendor, ts4USB3Top))}},
+		USB4:        []model.USB4Router{router},
+	}
+	Annotate(topo)
+	if topo.USB4[0].EnclosureID == "" {
+		t.Error("router with DROM strings was not tied to its dock")
+	}
+	if topo.USB4[0].ProductName != "CalDigit, Inc. TS4" {
+		t.Errorf("ProductName = %q, want the DROM strings", topo.USB4[0].ProductName)
+	}
+	var enc *model.Enclosure
+	topo.Walk(func(_ *model.Controller, _ *model.Device, _ *model.Port, d *model.Device) {
+		if d.ID == "ts4" {
+			enc = d.Enclosure
+		}
+	})
+	if enc == nil || enc.Source != "shipped" {
+		t.Errorf("enclosure = %+v, want source shipped", enc)
+	}
+}
+
+func TestAnnotateLeavesRoutersUntiedWhenTwoDocksMatch(t *testing.T) {
+	// Two TS4s: two boxes, two routers, and nothing to say which is which.
+	topo := &model.Topology{
+		Controllers: []model.Controller{{ID: "c1", RootHub: hub("root", 0, 0,
+			hub("ts4a", ts4Vendor, ts4USB3Top), hub("ts4b", ts4Vendor, ts4USB3Top))}},
+		USB4: []model.USB4Router{ts4Router("r1"), ts4Router("r2")},
+	}
+	Annotate(topo)
+	if encOf(t, topo, "ts4a") == encOf(t, topo, "ts4b") {
+		t.Fatal("two docks should be two boxes")
+	}
+	for _, r := range topo.USB4 {
+		if r.EnclosureID != "" {
+			t.Errorf("router %s tied to %q, want untied", r.ID, r.EnclosureID)
+		}
+	}
+}
+
+func TestAnnotateLeavesARouterUntiedWithoutItsDock(t *testing.T) {
+	// The router says TS4 but no TS4 hub was enumerated, so there is no box.
+	// A tie carried in from an older snapshot is dropped for the same reason.
+	router := ts4Router("r1")
+	router.EnclosureID = "dock:caldigit-ts4:1"
+	topo := &model.Topology{USB4: []model.USB4Router{router}}
+	Annotate(topo)
+	if topo.USB4[0].EnclosureID != "" {
+		t.Errorf("EnclosureID = %q, want empty", topo.USB4[0].EnclosureID)
+	}
+}
+
 func TestAnnotateNamesUSB4RoutersFromTheKnowledgeBase(t *testing.T) {
 	// A router reports its bridge silicon; the knowledge base knows the
 	// product that silicon is inside.

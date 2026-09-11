@@ -73,6 +73,22 @@ var linkSpeedInfo = map[LinkSpeed]struct {
 	LinkUSB4Gen4:     {"usb4_80", 80 * Gbps},
 }
 
+// USB4LinkSpeed is the LinkSpeed of a USB4 link of the given generation
+// (2, 3 or 4: 10, 20 or 40 Gbps per lane) over one or two lanes. Pairs
+// with no LinkSpeed of their own, such as a single Gen 2 lane at 10 Gbps,
+// come back unknown rather than as the nearest USB 3 speed.
+func USB4LinkSpeed(gen, lanes int) LinkSpeed {
+	switch {
+	case gen == 2 && lanes == 2, gen == 3 && lanes == 1:
+		return LinkUSB4Gen2
+	case gen == 3 && lanes == 2, gen == 4 && lanes == 1:
+		return LinkUSB4Gen3
+	case gen == 4 && lanes == 2:
+		return LinkUSB4Gen4
+	}
+	return LinkUnknown
+}
+
 func (l LinkSpeed) String() string {
 	if info, ok := linkSpeedInfo[l]; ok {
 		return info.name
@@ -167,12 +183,25 @@ const (
 	StatusEnumerating        ConnectionStatus = "enumerating"
 )
 
+// HostInfo names the computer a snapshot was taken on.
+type HostInfo struct {
+	// Name is the machine's network name ("DEVIANT").
+	Name string `json:"name,omitempty"`
+	// Manufacturer and Model are what the firmware reports ("Lenovo",
+	// "Yoga Pro 9 16IRP8"); either may be empty.
+	Manufacturer string `json:"manufacturer,omitempty"`
+	Model        string `json:"model,omitempty"`
+}
+
 // Topology is a full snapshot of every USB controller on the machine.
 type Topology struct {
 	SchemaVersion int          `json:"schema_version"`
 	CapturedAt    time.Time    `json:"captured_at"`
 	Platform      string       `json:"platform"`
-	Controllers   []Controller `json:"controllers"`
+	// Host is the computer itself, so the UI can name the box the
+	// controllers fold into. Nil when the provider cannot say.
+	Host        *HostInfo    `json:"host,omitempty"`
+	Controllers []Controller `json:"controllers"`
 	// USB4 lists the USB4 / Thunderbolt routers (host and device) that
 	// the OS exposes as a separate bus. See USB4Router for why they are
 	// not folded into Controllers.
@@ -211,6 +240,26 @@ type USB4Router struct {
 	// desk; the knowledge base maps the router id back to the product.
 	VendorName  string `json:"vendor_name,omitempty"`
 	ProductName string `json:"product_name,omitempty"`
+	// Vendor / Model are the strings the router itself carries in its
+	// DROM ("CalDigit, Inc." / "TS4"): the product on the desk, as its
+	// maker wrote it. Empty when the provider cannot read them.
+	Vendor string `json:"vendor,omitempty"`
+	Model  string `json:"model,omitempty"`
+	// USBVendorID / USBProductID are the product's USB identity as the
+	// DROM records it, so a USB4 SSD can be matched to its USB entry in
+	// the knowledge base without a separate alias. Zero when unknown.
+	USBVendorID  uint16 `json:"usb_vendor_id,omitempty"`
+	USBProductID uint16 `json:"usb_product_id,omitempty"`
+	// Revision is the router's hardware revision from its config space.
+	Revision uint16 `json:"revision,omitempty"`
+	// LinkGen / LinkLanes describe the negotiated upstream link as the
+	// lane adapter reports it: generation 2, 3 or 4 (10, 20 or 40 Gbps
+	// per lane) over 1 or 2 lanes. Zero when unknown or for a host router.
+	LinkGen   int `json:"link_gen,omitempty"`
+	LinkLanes int `json:"link_lanes,omitempty"`
+	// NegotiatedLink is LinkGen x LinkLanes as a LinkSpeed, so the UI and
+	// the rules can compare it with USB ports. Unknown when either is.
+	NegotiatedLink LinkSpeed `json:"negotiated_link,omitempty"`
 	// Kind is "host" for the router in the computer, "device" otherwise.
 	Kind string `json:"kind"`
 	// ParentID is the PnP parent: another router for device routers, the
@@ -219,6 +268,12 @@ type USB4Router struct {
 	// Depth is the number of USB4 routers between this one and the host
 	// router (0 for the host router).
 	Depth int `json:"depth"`
+	// EnclosureID names the box this router is the USB4 side of, when the
+	// knowledge base recognises the router as a dock's own: the dock's
+	// hubs carry the same Enclosure. Derived by enrichment, never observed.
+	// Empty for the host router, for a device that is its own box (a USB4
+	// SSD), and whenever the match would be a guess.
+	EnclosureID string `json:"enclosure_id,omitempty"`
 	// Children are the non-USB4 devices this router carries, rendered as
 	// "friendly name (instance id)", e.g. the NVMe disk behind a PCIe
 	// tunnel. USB devices behind a USB 3 tunnel are not listed here; they
@@ -322,6 +377,10 @@ type Enclosure struct {
 	// "CalDigit TS4". Empty for the host and for unrecognised hubs, which
 	// the UI names from the machine or the hub device itself.
 	Name string `json:"name,omitempty"`
+	// Source is the knowledge base layer the dock came from: "shipped",
+	// "shared" or "local". Empty for the host and unrecognised hubs. The
+	// UI uses it to offer "forget this dock" only on the user's own.
+	Source string `json:"source,omitempty"`
 	// DockID is the knowledge-base dock entry this box matched.
 	DockID string `json:"dock_id,omitempty"`
 }

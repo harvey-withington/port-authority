@@ -4,7 +4,7 @@
   import type { TreeContext } from '../lib/tree'
   import type { DetailLevel } from '../lib/view.svelte'
   import { layoutGraph, layoutPhysical } from '../lib/graph'
-  import { deviceName, routerName } from '../lib/topology'
+  import { graphNodeName } from '../lib/graphNames'
   import { expanded } from '../lib/expanded.svelte'
   import { observeWidth } from '../lib/actions'
   import { clampZoom, zoom } from '../lib/zoom.svelte'
@@ -29,17 +29,13 @@
   const layout = $derived((detail === 'physical' ? layoutPhysical : layoutGraph)(topology, {
     isExpanded: (id) => expanded.isExpanded(id),
     throughput: ctx.throughput,
+    docks: ctx.docks,
   }))
   const nodeById = $derived(new Map(layout.nodes.map((n) => [n.id, n])))
 
   function nameOf(id: string): string {
     const n = nodeById.get(id)
-    if (!n) return ''
-    if (n.kind === 'controller') return n.controller?.name ?? ''
-    if (n.kind === 'router') return n.router ? routerName(n.router) : ''
-    if (n.kind === 'carried') return n.label ?? ''
-    if (n.kind === 'box') return n.enclosure?.name || (n.device ? deviceName(n.device) : t('box.host'))
-    return n.device ? deviceName(n.device) : ''
+    return n ? graphNodeName(n) : ''
   }
 
   // Fit to the pane width until the user takes over. Only this component

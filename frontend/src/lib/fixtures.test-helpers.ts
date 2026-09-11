@@ -1,5 +1,5 @@
 // Builders for test topologies. Not a test file itself.
-import type { Connector, Controller, Device, Hub, Insight, Port, Topology } from './api/types'
+import type { Connector, Controller, Device, Enclosure, Hub, Insight, Port, Topology, USB4Router } from './api/types'
 
 export function device(overrides: Partial<Device> & { id: string }): Device {
   return {
@@ -75,4 +75,77 @@ export function sampleTopology(): Topology {
     ], { kind: 'root', depth: 0, port_count: 4, device_path: 'USB#ROOT_HUB30#4&TEST&0&0#{f18a0e88-c30c-11d0-8815-00a0c906bed8}' }),
   })
   return topology([controller(root)])
+}
+
+export const HOST: Enclosure = { id: 'host', kind: 'host' }
+export const DOCK: Enclosure = { id: 'dock:caldigit-ts4:1', kind: 'dock', name: 'CalDigit TS4', dock_id: 'caldigit-ts4' }
+
+/**
+ * The shape Windows reports for a laptop with a TS4 attached: the dock's
+ * USB 2 half hangs off one controller and its USB 3 half off another, so
+ * the same physical dock appears as two chains reached by two cables.
+ */
+export function dockedTopology(): Topology {
+  const keyboard = device({ id: 'USB\\KEYBOARD', class: 'hid', description: 'Keyboard' })
+  const ssd = device({ id: 'USB\\SSD', class: 'storage', product_name: 'EX400U' })
+
+  const usb2Inner = device({
+    id: 'USB\\TS4_USB2_B', class: 'hub', enclosure: DOCK,
+    hub: hub([port(1, keyboard), port(2, undefined)]),
+  })
+  const usb2Top = device({
+    id: 'USB\\TS4_USB2_A', class: 'hub', enclosure: DOCK,
+    hub: hub([port(1, usb2Inner)]),
+  })
+  const usb3Inner = device({
+    id: 'USB\\TS4_USB3_B', class: 'hub', enclosure: DOCK,
+    hub: hub([port(1, ssd), port(2, undefined)]),
+  })
+  const usb3Top = device({
+    id: 'USB\\TS4_USB3_A', class: 'hub', enclosure: DOCK,
+    hub: hub([port(1, usb3Inner)]),
+  })
+
+  const camera = device({ id: 'USB\\CAMERA', class: 'video', description: 'Integrated Camera' })
+  const root1 = device({
+    id: 'USB\\ROOT1', class: 'hub', enclosure: HOST,
+    // The dock's USB 2 uplink: same hole in the chassis as root2 port 1,
+    // but only 480 Mbps.
+    hub: hub([port(1, usb2Top, { negotiated_link: 'high', max_link: 'high', connector: connector(true) })], { kind: 'root', depth: 0 }),
+  })
+  const root2 = device({
+    id: 'USB\\ROOT2', class: 'hub', enclosure: HOST,
+    hub: hub([
+      port(1, usb3Top, { connector: connector(true) }),
+      port(2, camera, { connector: { type_c: false, user_connectable: false, multiple_companions: false } }),
+      port(3, undefined, { connector: connector(false) }),
+    ], { kind: 'root', depth: 0 }),
+  })
+
+  return topology([
+    controller(root1, { id: 'PCI\\CTRL1' }),
+    controller(root2, { id: 'PCI\\CTRL2' }),
+  ])
+}
+
+/**
+ * The docked laptop plus the USB4 fabric as the OS reports it: the host
+ * router, the dock's own router (tied to the dock's box by enrichment,
+ * unless told to name another box) and a USB4 SSD behind the dock.
+ */
+export function dockedTopologyWithUsb4(dockEnclosureId: string = DOCK.id): Topology {
+  const usb4: USB4Router[] = [
+    { id: 'USB4\\HOST', instance_id: 'USB4\\HOST', name: 'USB4 Root Router (1.0)', vendor_id: 0x8086, product_id: 0xe433, kind: 'host', depth: 0 },
+    {
+      id: 'USB4\\TS4', instance_id: 'USB4\\TS4', name: 'USB4 Router (1.0), CalDigit. Inc. - TS4',
+      vendor_id: 0x8087, product_id: 0x0b26, kind: 'device', parent_id: 'USB4\\HOST', depth: 1, enclosure_id: dockEnclosureId,
+      // On a 20 Gbps cable, as DEVIANT's TS4 turned out to be.
+      vendor: 'CalDigit, Inc.', model: 'TS4', link_gen: 2, link_lanes: 2, negotiated_link: 'usb4_20',
+    },
+    {
+      id: 'USB4\\SSD', instance_id: 'USB4\\SSD', name: 'USB4 Router (2.0), Phison - PS2321', product_name: 'Corsair EX400U',
+      vendor_id: 0x13fe, product_id: 0x6900, kind: 'device', parent_id: 'USB4\\TS4', depth: 2, children: ['NVMe disk (D:)'],
+    },
+  ]
+  return { ...dockedTopology(), usb4 }
 }
