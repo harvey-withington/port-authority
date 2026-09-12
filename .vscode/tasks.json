@@ -41,6 +41,12 @@
       "problemMatcher": []
     },
     {
+      "label": "kb: sync from usb-device-kb",
+      "type": "shell",
+      "command": "go run ./tools/syncdata",
+      "problemMatcher": []
+    },
+    {
       "label": "frontend: check + test",
       "type": "shell",
       "command": "npm run check && npm run test:run",
