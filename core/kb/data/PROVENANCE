@@ -1,0 +1,4 @@
+source: https://github.com/harvey-withington/usb-device-kb
+commit: ad521e4c1358cf936c2d35b3187721b8dc052505
+synced: 2026-09-12
+files: docks.json, devices.json
