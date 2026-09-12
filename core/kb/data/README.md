@@ -12,3 +12,11 @@ Public USB vendor / product ID database used by `core/kb`.
 Only the vendor and product sections are parsed. Class, HID, language and
 other trailing sections are embedded but ignored. Do not hand-edit the file;
 re-download it and update the date above.
+
+# docks.json and devices.json
+
+Vendored from https://github.com/harvey-withington/usb-device-kb (MIT),
+the community knowledge base. Do not edit here: change them in that repo
+(cloned as `usb-device-kb/` at the project root), then run
+`go run ./tools/syncdata`, which copies them in and records the source
+commit in `PROVENANCE`. `overrides.json` is the app's own and stays here.

@@ -20,3 +20,6 @@ desktop.ini
 
 # Private planning scratchpad (separate repo)
 /plan/
+
+# Community knowledge base (separate public repo, vendored into core/kb/data by tools/syncdata)
+/usb-device-kb/

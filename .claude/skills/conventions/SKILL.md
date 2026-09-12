@@ -43,6 +43,13 @@ shipped (`data/docks.json`, `data/devices.json`), shared (community, not
 fetched yet) and local (the user's own, written by the app). All layers
 use the `DockEntry` schema. See `docs/decisions/0002-knowledge-base-layers.md`.
 
+The data itself lives in the public MIT repo
+https://github.com/harvey-withington/usb-device-kb, cloned into this
+project as `usb-device-kb/` (ignored by git, like `plan/`). Edit docks and
+devices there, where the validator and schema are, commit, then
+`go run ./tools/syncdata` copies the files into `core/kb/data` and writes
+`PROVENANCE`. Never edit `core/kb/data/*.json` directly.
+
 Adding a dock to `docks.json`:
 
 - `hubs`: every logical hub the dock exposes, as lower-case `vid:pid`.
