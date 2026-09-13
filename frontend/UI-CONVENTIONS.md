@@ -194,8 +194,12 @@ the box. The box then wears two badges: a `LinkBadge` for the USB4 cable
 for the USB tunnel inside it, so 10 Gbps beside a Thunderbolt dock reads as
 the tunnel rather than a slow dock. A router whose enclosure is not a box
 in the snapshot is drawn as a router. `GraphNodeMeta` renders the second
-line of every card; `BoxTag` the "dock" / "your dock" word, with a forget
-button on the user's own docks that opens the editor. The computer's box
+line of every card; `BoxTag` (`enclosure`, `name`, `dock?: DockView`) the
+"dock" / "community dock" / "your dock" word, with, on the user's own
+docks, a share button that opens the community repo's issue form
+pre-filled from the entry (`lib/community.ts`: `shareDockUrl`,
+`openExternal`, which uses the Wails runtime's browser opener when there
+is one) and a forget button that opens the editor. The computer's box
 is named after the machine (`Topology.host.name`) with its make and model
 (`hostModel`) on the second line when the provider reports them, and
 "This computer" otherwise. Hubs toggle

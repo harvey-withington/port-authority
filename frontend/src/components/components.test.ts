@@ -153,6 +153,28 @@ describe('TopologyGraph', () => {
     expect(dock?.classList.contains('flash')).toBe(true)
   })
 
+  it('offers to share a dock the user set up, and tags a community dock', async () => {
+    const open = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const t = dockedTopologyWithUsb4()
+    const stamp = (source: 'local' | 'shared'): Topology =>
+      JSON.parse(JSON.stringify(t), (key: string, value: unknown) => (key === 'enclosure' && value && typeof value === 'object' ? { ...(value as object), source } : value)) as Topology
+    const docks = new Map([['caldigit-ts4', { id: 'caldigit-ts4', name: 'CalDigit TS4', source: 'local' as const, hubs: ['2188:5500'] }]])
+    const { unmount } = render(TopologyGraph, { topology: stamp('local'), ctx: { ...quiet, docks }, loading: false, detail: 'physical' })
+    await tick()
+    expect(screen.getByText('your dock')).toBeInTheDocument()
+    await fireEvent.click(screen.getByRole('button', { name: 'Share CalDigit TS4 with the community' }))
+    expect(open).toHaveBeenCalledTimes(1)
+    const url = new URL(String(open.mock.calls[0][0]))
+    expect(url.pathname).toBe('/harvey-withington/usb-device-kb/issues/new')
+    expect(url.searchParams.get('title')).toBe('Dock: CalDigit TS4')
+    unmount()
+    render(TopologyGraph, { topology: stamp('shared'), ctx: quiet, loading: false, detail: 'physical' })
+    await tick()
+    expect(screen.getByText('community dock')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Share/ })).not.toBeInTheDocument()
+    open.mockRestore()
+  })
+
   it('opens the findings panel narrowed to the device whose flag was clicked', async () => {
     findingFilter.clear()
     if (layout.panelsOpen) layout.togglePanels()
@@ -405,6 +427,10 @@ describe('small parts', () => {
     expect(screen.getByText('built in')).toBeInTheDocument()
     expect(container.querySelectorAll('.socket')).toHaveLength(4)
     expect(container.querySelectorAll('.socket .bolt')).toHaveLength(1)
+    // One row per finding severity, each wearing its glyph.
+    expect(screen.getByText('Findings')).toBeInTheDocument()
+    for (const label of ['Info', 'Warning', 'Critical']) expect(screen.getByText(label)).toBeInTheDocument()
+    expect(container.querySelectorAll('.severity .glyph svg')).toHaveLength(3)
   })
 
   it('ConnectionBanner offers a retry when degraded', async () => {

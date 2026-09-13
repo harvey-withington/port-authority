@@ -149,7 +149,7 @@
         <span class="badge"><LinkBadge negotiated={node.port.negotiated_link} max={node.port.max_link} claimed={device.claimed_speed} /></span>
       {/if}
       {#if isBox}
-        <BoxTag enclosure={node.enclosure ?? null} {name} />
+        <BoxTag enclosure={node.enclosure ?? null} {name} dock={node.enclosure?.dock_id ? ctx.docks?.get(node.enclosure.dock_id) : undefined} />
       {/if}
       {#if severity}
         <FlagBadge {severity} ids={flaggedIds} {name} />

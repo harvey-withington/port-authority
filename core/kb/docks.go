@@ -159,23 +159,37 @@ type catalog struct {
 }
 
 var (
-	current  atomic.Pointer[catalog]
-	loadOnce sync.Once
+	current atomic.Pointer[catalog]
 
 	// layersMu guards the mutable layers and the local directory; the
 	// catalog itself is read lock-free through `current`.
-	layersMu sync.Mutex
-	shared   []DockEntry
-	local    []DockEntry
-	localDir string
+	layersMu      sync.Mutex
+	shared        []DockEntry
+	sharedDevices map[string]KnownDevice
+	local         []DockEntry
+	localDir      string
 )
 
+// cat is the current catalog, built from the shipped data on first use.
+// Readers never take the lock once it exists; the first one does, and a
+// writer that got there first has already built it.
 func cat() *catalog {
-	loadOnce.Do(func() {
-		layersMu.Lock()
-		defer layersMu.Unlock()
-		rebuild()
-	})
+	if c := current.Load(); c != nil {
+		return c
+	}
+	layersMu.Lock()
+	defer layersMu.Unlock()
+	return catalogLocked()
+}
+
+// catalogLocked is cat for callers already holding layersMu. Taking the
+// lock again from inside would deadlock, which is exactly what a first
+// write before any read used to do.
+func catalogLocked() *catalog {
+	if c := current.Load(); c != nil {
+		return c
+	}
+	rebuild()
 	return current.Load()
 }
 
@@ -365,13 +379,82 @@ func LocalDir() string {
 	return localDir
 }
 
-// UseShared replaces the community layer. Nothing fetches it yet; this is
-// the seam a later fetcher plugs into, and what a test uses to stand one up.
-func UseShared(entries []DockEntry) {
+// UseShared replaces the community dock layer, which core/community
+// fetches from the usb-device-kb releases. An entry that cannot be indexed
+// (a malformed hub id) is left out and named in the returned error; the
+// rest still apply, since one bad entry must not cost the whole layer.
+func UseShared(entries []DockEntry) error {
 	layersMu.Lock()
 	defer layersMu.Unlock()
-	shared = append([]DockEntry(nil), entries...)
+	kept, err := wellFormed(entries)
+	shared = kept
 	rebuild()
+	return err
+}
+
+// UseSharedDevices replaces the community device layer. Keys are
+// "vid:pid"; a malformed key is left out and named in the returned error.
+func UseSharedDevices(devices map[string]KnownDevice) error {
+	layersMu.Lock()
+	defer layersMu.Unlock()
+	var rejected []string
+	kept := map[string]KnownDevice{}
+	for key, dev := range devices {
+		if _, err := parsePair(key); err != nil {
+			rejected = append(rejected, key)
+			continue
+		}
+		if dev.USB4ID != "" {
+			if _, err := parsePair(dev.USB4ID); err != nil {
+				rejected = append(rejected, key)
+				continue
+			}
+		}
+		kept[key] = dev
+	}
+	sharedDevices = kept
+	rebuild()
+	if len(rejected) > 0 {
+		return fmt.Errorf("kb: %d shared device(s) rejected: %s", len(rejected), strings.Join(rejected, ", "))
+	}
+	return nil
+}
+
+// wellFormed keeps the entries whose ids parse, reporting the rest.
+func wellFormed(entries []DockEntry) ([]DockEntry, error) {
+	kept := make([]DockEntry, 0, len(entries))
+	var rejected []string
+	for _, e := range entries {
+		ok := e.ID != "" && len(e.Hubs) > 0
+		for _, h := range e.Hubs {
+			if _, err := parsePair(h); err != nil {
+				ok = false
+			}
+		}
+		for _, m := range e.PortMap {
+			if _, err := parsePair(m.Hub); err != nil {
+				ok = false
+			}
+		}
+		if !ok {
+			rejected = append(rejected, firstNonEmpty(e.ID, e.Name, "unnamed"))
+			continue
+		}
+		kept = append(kept, e)
+	}
+	if len(rejected) > 0 {
+		return kept, fmt.Errorf("kb: %d shared dock(s) rejected: %s", len(rejected), strings.Join(rejected, ", "))
+	}
+	return kept, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if v != "" {
+			return v
+		}
+	}
+	return ""
 }
 
 // ErrNoLocalLayer is returned when writing without a local directory.
@@ -400,7 +483,7 @@ func AddLocalDock(entry DockEntry) (*Dock, error) {
 	// A chipset hub found inside many docks (Goshen Ridge's) must not be
 	// claimed by one of them: it folds into whichever dock it sits in
 	// already, and listing it here would pull every such dock into this one.
-	generic := cat().genericDockHub
+	generic := catalogLocked().genericDockHub
 	hubs := make([]string, 0, len(entry.Hubs))
 	for _, h := range entry.Hubs {
 		key, err := parsePair(h)
@@ -583,6 +666,17 @@ func rebuild() {
 		c.knownDevices[mustParsePair(k, "devices.json")] = dev
 		if dev.USB4ID != "" {
 			c.knownByUSB4[mustParsePair(dev.USB4ID, "devices.json usb4_id")] = dev
+		}
+	}
+	// The community layer overlays the shipped devices by key; the keys
+	// were checked when the layer was set, so no panic is possible here.
+	for k, dev := range sharedDevices {
+		dev := dev
+		key, _ := parsePair(k)
+		c.knownDevices[key] = &dev
+		if dev.USB4ID != "" {
+			usb4Key, _ := parsePair(dev.USB4ID)
+			c.knownByUSB4[usb4Key] = &dev
 		}
 	}
 	current.Store(c)

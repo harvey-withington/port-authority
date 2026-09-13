@@ -43,7 +43,7 @@ func speedWord(l model.LinkSpeed) string {
 	case model.LinkUSB4Gen3:
 		return "40 Gbps (USB4 / Thunderbolt)"
 	case model.LinkUSB4Gen4:
-		return "80 Gbps (USB4 v2)"
+		return "80 Gbps (USB4 v2 / Thunderbolt 5)"
 	}
 	return l.String()
 }

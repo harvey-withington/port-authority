@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"portauthority/core/api"
+	"portauthority/core/community"
 	"portauthority/core/kb"
 )
 
@@ -20,6 +21,7 @@ func runServe(args []string) error {
 	fixture := fs.String("fixture", "", "replay a saved snapshot instead of reading hardware")
 	defaultKB, _ := kb.DefaultLocalDir()
 	kbDir := fs.String("kb-dir", defaultKB, "directory of the user's own knowledge base; empty for read-only")
+	noCommunity := fs.Bool("no-community", false, "do not fetch the community knowledge base (fixtures, screenshots, offline)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -33,6 +35,14 @@ func runServe(args []string) error {
 	logger := log.New(os.Stderr, "pactl serve: ", log.LstdFlags)
 	svc := api.NewService(p, api.WithLogger(logger))
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	// The community layer needs somewhere to cache, so a read-only run
+	// goes without it, as does one that asked to stay offline.
+	if *kbDir != "" && !*noCommunity {
+		community.Run(ctx, *kbDir, svc.RefreshAfterChange, logger)
+	}
+
 	base := "http://" + *addr + "/api/v1"
 	fmt.Printf("Port Authority API (provider %s) listening on %s\n", p.Capabilities().Platform, *addr)
 	for _, ep := range []string{"health", "capabilities", "topology", "insights", "devices/{id}", "throughput", "kb/docks"} {
@@ -43,9 +53,6 @@ func runServe(args []string) error {
 	}
 	fmt.Printf("  WS  ws://%s/api/v1/stream  (events: %s)\n", *addr, strings.Join(api.EventTypes, ", "))
 	fmt.Println("Press Ctrl+C to stop.")
-
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
 
 	// The live side (hotplug refreshes, throughput samples) runs alongside
 	// the HTTP server; a provider without those streams just logs that.

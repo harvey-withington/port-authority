@@ -7,6 +7,7 @@
   import { t } from '../lib/i18n.svelte'
   import ClassIcon from './ClassIcon.svelte'
   import PortSocket from './PortSocket.svelte'
+  import SeverityIcon from './SeverityIcon.svelte'
 
   interface Props {
     onClose: () => void
@@ -21,6 +22,7 @@
     imaging: 'imaging', composite: 'composite', vendor: 'vendor', unknown: 'unknown',
   }
   const HEALTH = ['good', 'slow', 'idle'] as const
+  const SEVERITIES = ['info', 'warning', 'critical'] as const
 
   function samplePort(max: LinkSpeed, connector: Connector): Port {
     return { number: 1, status: 'none', negotiated_link: 'none', max_link: max, connector }
@@ -77,6 +79,13 @@
   <ul class="health">
     {#each HEALTH as h (h)}
       <li><span class="ring ring-{h}" aria-hidden="true"></span>{t(`link.health.${h}`)}</li>
+    {/each}
+  </ul>
+
+  <h4>{t('legend.severity')}</h4>
+  <ul class="severity">
+    {#each SEVERITIES as s (s)}
+      <li><span class="glyph sev-{s}" aria-hidden="true"><SeverityIcon severity={s} size={14} /></span>{t(`insight.severity.${s}`)}</li>
     {/each}
   </ul>
 
@@ -211,6 +220,18 @@
   }
   .ring-good { border-color: var(--link-good); }
   .ring-slow { border-color: var(--link-slow); }
+  .severity li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 1px 0;
+  }
+  /* The glyph takes the severity colour from the global .sev-* classes. */
+  .glyph {
+    display: inline-flex;
+    width: 14px;
+    justify-content: center;
+  }
   .diagram li {
     display: flex;
     align-items: center;

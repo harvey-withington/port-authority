@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 // resetLayers puts the knowledge base back to the shipped data alone.
@@ -75,6 +76,33 @@ func TestLocalDockOverridesShippedAndCanBeForgotten(t *testing.T) {
 	}
 	if d, _ := DockForHub(0x2188, 0x5500); d.ID != "caldigit-ts4" {
 		t.Errorf("after forgetting, hub resolves to %s, want the shipped TS4 back", d.ID)
+	}
+}
+
+func TestFirstWriteBeforeAnyReadDoesNotDeadlock(t *testing.T) {
+	// A fresh process that sets the local directory and adds a dock before
+	// anything has looked a hub up: the catalog is built inside the write.
+	resetLayers(t)
+	current.Store(nil)
+	done := make(chan error, 1)
+	go func() {
+		if err := UseLocalDir(t.TempDir()); err != nil {
+			done <- err
+			return
+		}
+		_, err := AddLocalDock(DockEntry{Name: "Fresh", Hubs: []string{"1234:0001"}})
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("AddLocalDock deadlocked on a cold catalog")
+	}
+	if d, ok := DockForHub(0x1234, 0x0001); !ok || d.Name != "Fresh" {
+		t.Errorf("dock added on a cold catalog not found: %+v %v", d, ok)
 	}
 }
 

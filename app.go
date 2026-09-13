@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"portauthority/core/api"
+	"portauthority/core/community"
 	"portauthority/core/kb"
 	"portauthority/platform"
 )
@@ -78,15 +79,23 @@ func (a *App) serve() {
 	}
 	// The user's own docks live in their config directory. Losing them
 	// is not fatal: the app runs on the shipped knowledge base alone.
+	kbDir := ""
 	if dir, err := kb.DefaultLocalDir(); err != nil {
 		log.Printf("%s: no config directory, running without a local knowledge base: %v", AppName, err)
 	} else if err := kb.UseLocalDir(dir); err != nil {
 		log.Printf("%s: local knowledge base in %s not loaded: %v", AppName, dir, err)
+	} else {
+		kbDir = dir
 	}
 	svc := api.NewService(p, api.WithLogger(log.Default()))
 	ctx, cancel := context.WithCancel(context.Background())
 	a.cancel = cancel
 	a.runDone = make(chan struct{})
+	// The community layer: cached copy now, a refresh in the background,
+	// and a re-read of the machine if the data changed.
+	if kbDir != "" {
+		community.Run(ctx, kbDir, svc.RefreshAfterChange, log.Default())
+	}
 
 	go func() {
 		defer close(a.runDone)

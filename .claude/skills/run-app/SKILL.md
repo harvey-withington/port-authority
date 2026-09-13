@@ -24,8 +24,12 @@ If it is taken, leave it alone and use 7912 below. Never `taskkill` that PID.
 
 ```bash
 cd s:/Local/Code/Projects/port-authority/port-authority-1.0
-go run ./cmd/pactl serve --addr 127.0.0.1:7912 --fixture testdata/fixtures/deviant-caldigit-ts4-ssd-on-tb4.json
+go run ./cmd/pactl serve --addr 127.0.0.1:7912 --kb-dir "" --fixture testdata/fixtures/deviant-caldigit-ts4-ssd-on-tb4.json
 ```
+
+`--kb-dir ""` keeps the run read-only: no local docks, no community fetch,
+so the screenshot shows the shipped knowledge base only. To exercise the
+"set up this dock" flow, point `--kb-dir` at a scratch folder instead.
 
 Run it in the background, then poll rather than sleep:
 

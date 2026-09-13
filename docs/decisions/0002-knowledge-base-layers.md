@@ -24,16 +24,20 @@ layers, later layers winning by dock id and by hub id:
 | Layer | Source | Where | Who writes it |
 |---|---|---|---|
 | shipped | `SourceShipped` | embedded `data/docks.json`, `data/devices.json` | maintainers, via PRs |
-| shared | `SourceShared` | a cached file the community service publishes; `kb.UseShared(entries)` is the seam | a fetcher that does not exist yet |
+| shared | `SourceShared` | the `latest` release of github.com/harvey-withington/usb-device-kb, fetched by `core/community` with If-None-Match and cached under `<kb dir>/shared/` | the community, through that repo's issue form and review |
 | local | `SourceLocal` | `<UserConfigDir>/PortAuthority/kb/docks.json` | the user, through the app |
 
 Every layer uses the same `DockEntry` schema, so an entry can move between
-them unchanged: the future "share with the community" button submits the
-local entry as it is, plus the snapshot it was made from as evidence, and
-the community service publishes what it accepts back into the shared file.
-Nothing in the app needs to change shape for that; only a fetcher and a
-submitter need writing, and both depend on web infrastructure that is out
-of scope now.
+them unchanged. The data lives in its own public MIT repository,
+usb-device-kb, cloned into the project as an ignored subfolder and vendored
+into `core/kb/data` by `tools/syncdata`, which records the source commit.
+Sharing sends nothing from the app: the "share" button on one of the
+user's docks opens the repository's issue form in the browser with the
+entry filled in, a workflow there validates it and opens a pull request, a
+maintainer merges, and a second workflow republishes both files as assets
+of a rolling `latest` release. `core/community` fetches those at start,
+after applying its cache, and re-reads the machine when they changed.
+GitHub is the whole infrastructure.
 
 Each dock carries `Source`, `Verified` and `Notes`; the enclosure stamped on
 a hub carries the source too, so the UI can offer "forget this dock" only

@@ -41,14 +41,23 @@ func hostInfo() *model.HostInfo {
 }
 
 // tidyMaker turns the shouting some firmware does ("LENOVO") into a name
-// ("Lenovo"); mixed-case values are left as written.
+// ("Lenovo"). Mixed-case values are left as written, and so are short
+// all-caps ones, which are usually initialisms ("HP", "MSI", "ASUS").
 func tidyMaker(s string) string {
 	if s == "" || strings.ToUpper(s) != s {
 		return s
 	}
-	runes := []rune(strings.ToLower(s))
-	runes[0] = unicode.ToUpper(runes[0])
-	return string(runes)
+	words := strings.Fields(s)
+	for i, w := range words {
+		runes := []rune(w)
+		if len(runes) < 5 {
+			continue
+		}
+		lower := []rune(strings.ToLower(w))
+		lower[0] = unicode.ToUpper(lower[0])
+		words[i] = string(lower)
+	}
+	return strings.Join(words, " ")
 }
 
 func firstNonEmpty(values ...string) string {

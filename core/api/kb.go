@@ -6,6 +6,7 @@ import (
 	"errors"
 	"net/http"
 
+	"portauthority/core/community"
 	"portauthority/core/kb"
 	"portauthority/core/model"
 )
@@ -37,6 +38,8 @@ func (s *Service) handleKBDocksList(w http.ResponseWriter, r *http.Request) {
 		"docks":          views,
 		"local_dir":      kb.LocalDir(),
 		"writable":       kb.LocalDir() != "",
+		"community":      community.CurrentStatus(),
+		"community_repo": community.Repo,
 	})
 }
 

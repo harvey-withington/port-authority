@@ -32,7 +32,7 @@ describe('link labels', () => {
     expect(linkDescription('high')).toBe('USB 2 speed (480 Mbps)')
     expect(linkDescription('ss10')).toBe('10 Gbps')
     expect(linkDescription('usb4_40')).toBe('40 Gbps (USB4 / Thunderbolt)')
-    expect(linkDescription('usb4_80')).toBe('80 Gbps (USB4 v2)')
+    expect(linkDescription('usb4_80')).toBe('80 Gbps (USB4 v2 / Thunderbolt 5)')
   })
 
   it('has a short badge form', () => {
