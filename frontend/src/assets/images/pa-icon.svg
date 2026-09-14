@@ -1,33 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
-  <!-- Port Authority icon: a USB-C socket with three cables fanning out of
-       it, each drawn in a step of the app's speed ramp (cool to hot) and at
-       a thickness that reads as capacity, the way the diagram draws links.
-       Name-neutral on purpose: it works for any name the app ends up with. -->
+  <!-- Port Authority icon: a USB-C socket inside an open ring drawn in the
+       app's speed ramp. The ring is the "is it right" signal the UI draws
+       around a link; the socket is the thing being judged. No tile, no
+       outline: the ground is transparent, and the socket's black interior
+       keeps the white outline legible on a light background. -->
   <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#232329"/>
-      <stop offset="1" stop-color="#141417"/>
-    </linearGradient>
-    <linearGradient id="hot" gradientUnits="userSpaceOnUse" x1="104" y1="0" x2="214" y2="0">
-      <stop offset="0" stop-color="#b40046"/>
+    <linearGradient id="ring" gradientUnits="userSpaceOnUse" x1="30" y1="30" x2="226" y2="226">
+      <stop offset="0" stop-color="#2dd4bf"/>
+      <stop offset="0.5" stop-color="#6366f1"/>
       <stop offset="1" stop-color="#eb47a9"/>
     </linearGradient>
-    <linearGradient id="warm" gradientUnits="userSpaceOnUse" x1="104" y1="0" x2="214" y2="0">
-      <stop offset="0" stop-color="#ae9000"/>
-      <stop offset="1" stop-color="#f5c400"/>
-    </linearGradient>
-    <linearGradient id="cool" gradientUnits="userSpaceOnUse" x1="104" y1="0" x2="214" y2="0">
-      <stop offset="0" stop-color="#00ad88"/>
-      <stop offset="1" stop-color="#2dd4bf"/>
-    </linearGradient>
   </defs>
-  <rect width="256" height="256" rx="58" fill="url(#tile)"/>
-  <rect x="1.5" y="1.5" width="253" height="253" rx="57" fill="none" stroke="#6366f1" stroke-opacity="0.35" stroke-width="3"/>
-  <g fill="none" stroke-linecap="round">
-    <path d="M104 128 C 150 128, 150 62, 214 62" stroke="url(#hot)" stroke-width="16"/>
-    <path d="M104 128 C 160 128, 160 128, 214 128" stroke="url(#warm)" stroke-width="12"/>
-    <path d="M104 128 C 150 128, 150 194, 214 194" stroke="url(#cool)" stroke-width="9"/>
-  </g>
-  <!-- the socket sits over the cable roots so they read as coming out of it -->
-  <rect x="34" y="106" width="76" height="44" rx="22" fill="#141417" stroke="#f4f4f5" stroke-width="12"/>
+  <circle cx="128" cy="128" r="104" fill="none" stroke="url(#ring)" stroke-width="22" stroke-linecap="round" stroke-dasharray="520 134" transform="rotate(-60 128 128)"/>
+  <rect x="74" y="102" width="108" height="52" rx="26" fill="#111111" stroke="#f4f4f5" stroke-width="16"/>
 </svg>

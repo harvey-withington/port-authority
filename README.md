@@ -1,6 +1,6 @@
 # Port Authority
 
-*Working title.* A USB / Thunderbolt insight app for Windows (macOS-ready architecture). It does not just show your USB topology, it explains it: bandwidth budgets, dock and display alt-mode tax, bottleneck detection, plain-language fixes, and live truth-testing of devices.
+A USB / Thunderbolt insight app for Windows (macOS-ready architecture). It does not just show your USB topology, it explains it: bandwidth budgets, dock and display alt-mode tax, bottleneck detection, plain-language fixes, and live truth-testing of devices.
 
 The full spec is in [docs/port-authority-handoff.md](docs/port-authority-handoff.md).
 
@@ -127,5 +127,3 @@ The scrubber rewrites `serial_number` fields, the serial segment of instance IDs
 2. Elevation: collector runs unelevated; live throughput needs a one-time addition to Performance Log Users.
 3. Device identity: PnP instance ID, shared by the IOCTL walk and the ETW rundown events.
 4. Alt-mode: the USBHUB3 rundown reports DisplayPort, Thunderbolt 3 and USB4 capability per port, so it is partly reported rather than inferred.
-
-Still open: the final name (Port Authority is the working title).

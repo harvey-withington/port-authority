@@ -15,7 +15,7 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-// AppName is the working title. Rename here and in wails.json only.
+// AppName is the product name. Rename here and in wails.json only.
 const AppName = "Port Authority"
 
 // Version is stamped at build time via -ldflags "-X main.Version=...".

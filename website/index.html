@@ -562,6 +562,31 @@
         else if (e.key === 'ArrowRight') show(idx + 1);
       });
     })();
+
+    // Scroll-scaled brand: large at the top of the page, easing down into
+    // its nav slot over the first ~280px of scroll. Scroll-linked (no
+    // transition) so it tracks the thumb 1:1. Skipped for reduced-motion
+    // users and on narrow viewports (the mobile hero has no landing zone).
+    (function () {
+      var brand = document.querySelector('.nav .brand');
+      if (!brand) return;
+      var MAX = 2.25, RANGE = 280;
+      var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+      var wide = window.matchMedia('(min-width: 920px)');
+      function apply() {
+        if (reduced.matches || !wide.matches) {
+          brand.style.transform = '';
+          return;
+        }
+        var t = Math.min(1, Math.max(0, window.scrollY / RANGE));
+        var f = (1 - t) * (1 - t); // ease-out: settles gently into the slot
+        brand.style.transform = 'scale(' + (1 + (MAX - 1) * f) + ')';
+      }
+      window.addEventListener('scroll', apply, { passive: true });
+      window.addEventListener('resize', apply, { passive: true });
+      reduced.addEventListener('change', apply);
+      apply();
+    })();
   </script>
 </body>
 
