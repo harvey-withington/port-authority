@@ -115,7 +115,9 @@ jobs:
           body: |
             ## Port Authority ${{ needs.build-windows.outputs.version }}
 
-            <!-- Release notes go here before publishing the draft. -->
+            <!-- Release notes go here before publishing the draft. Draft them
+                 in plan/, paste here, then attach the .md to the release card
+                 in BRUV. The change log itself is the compare link on GitHub. -->
 
             ### Install
 
