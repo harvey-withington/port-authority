@@ -1,0 +1,568 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Port Authority — USB and Thunderbolt, explained</title>
+  <meta name="description"
+    content="Port Authority is a free, open-source Windows app that does not just show your USB and Thunderbolt tree, it explains it: which port your SSD should be on, why the dock came up slow, and what to do about it." />
+  <meta name="theme-color" content="#18181b" />
+
+  <link rel="canonical" href="https://harvey-withington.github.io/port-authority/" />
+
+  <meta property="og:title" content="Port Authority — USB and Thunderbolt, explained" />
+  <meta property="og:description"
+    content="Your USB tree, explained. Plain-language findings, live throughput, docks drawn as one box. Free, MIT, Windows." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://harvey-withington.github.io/port-authority/" />
+  <meta property="og:image" content="https://harvey-withington.github.io/port-authority/pa-icon-512.png" />
+
+  <link rel="icon" type="image/svg+xml" href="pa-icon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <!-- Shared gradient + icon sprite (referenced via <use>) -->
+  <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute">
+    <defs>
+      <linearGradient id="ng" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#2dd4bf" />
+        <stop offset="50%" stop-color="#6366f1" />
+        <stop offset="100%" stop-color="#eb47a9" />
+      </linearGradient>
+
+      <!-- 24x24 line icons, stroke="url(#ng)" -->
+      <symbol id="i-plug" viewBox="0 0 24 24">
+        <path d="M9 3v6M15 3v6" />
+        <path d="M6 9h12v2a6 6 0 0 1-12 0Z" />
+        <path d="M12 17v4" />
+      </symbol>
+      <symbol id="i-bulb" viewBox="0 0 24 24">
+        <path d="M15 14.5c.2-1 .7-1.8 1.5-2.6a6 6 0 1 0-9 0c.8.8 1.3 1.6 1.5 2.6" />
+        <path d="M9.5 18h5M10.5 21.5h3" />
+      </symbol>
+      <symbol id="i-eye" viewBox="0 0 24 24">
+        <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+        <circle cx="12" cy="12" r="3" />
+      </symbol>
+      <symbol id="i-api" viewBox="0 0 24 24">
+        <path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 5l-4 14" />
+      </symbol>
+      <symbol id="i-shield" viewBox="0 0 24 24">
+        <path d="M12 3 5 6v5c0 4.5 3 8 7 10 4-2 7-5.5 7-10V6Z" />
+        <path d="m9 12 2 2 4-4" />
+      </symbol>
+      <symbol id="i-graph" viewBox="0 0 24 24">
+        <rect x="3" y="9" width="5" height="6" rx="1.5" />
+        <rect x="16" y="3" width="5" height="5" rx="1.5" />
+        <rect x="16" y="16" width="5" height="5" rx="1.5" />
+        <path d="M8 12h3c2 0 2-6.5 5-6.5M11 12c2 0 2 6.5 5 6.5" />
+      </symbol>
+      <symbol id="i-wave" viewBox="0 0 24 24">
+        <path d="M3 12h3l2-6 3 12 3-9 2 3h5" />
+      </symbol>
+      <symbol id="i-chat" viewBox="0 0 24 24">
+        <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 3.5V17H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
+        <path d="M7 9.5h10M7 12.5h7" />
+      </symbol>
+      <symbol id="i-clock" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="M12 7.5V12l3 2" />
+      </symbol>
+      <symbol id="i-box" viewBox="0 0 24 24">
+        <path d="M12 3 20 7v10l-8 4-8-4V7Z" />
+        <path d="M4 7l8 4 8-4M12 11v10" />
+      </symbol>
+      <symbol id="i-palette" viewBox="0 0 24 24">
+        <path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-1 1.5-2s0-2 1.5-2h1.5A4.5 4.5 0 0 0 21 12.5 9.5 9.5 0 0 0 12 3Z" />
+        <circle cx="7.5" cy="12" r="1.2" />
+        <circle cx="10" cy="7.5" r="1.2" />
+        <circle cx="15" cy="7.5" r="1.2" />
+      </symbol>
+      <symbol id="i-share" viewBox="0 0 24 24">
+        <circle cx="6" cy="12" r="2.5" />
+        <circle cx="18" cy="6" r="2.5" />
+        <circle cx="18" cy="18" r="2.5" />
+        <path d="m8.2 10.8 7.6-3.6M8.2 13.2l7.6 3.6" />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="8.5" />
+        <path d="m8.5 12 2.5 2.5 4.5-5" />
+      </symbol>
+      <symbol id="i-merge" viewBox="0 0 24 24">
+        <circle cx="6" cy="5" r="2" />
+        <circle cx="6" cy="19" r="2" />
+        <circle cx="18" cy="12" r="2" />
+        <path d="M6 7v10M6 7c0 5 10 5 10 5" />
+      </symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24">
+        <path d="M4 12h16m-6-6 6 6-6 6" />
+      </symbol>
+      <symbol id="i-github" viewBox="0 0 24 24">
+        <path fill="currentColor" stroke="none"
+          d="M12 .5C5.37.5 0 5.78 0 12.29c0 5.2 3.44 9.6 8.21 11.16.6.11.82-.25.82-.56 0-.28-.01-1.02-.02-2-3.34.71-4.04-1.58-4.04-1.58-.55-1.37-1.34-1.74-1.34-1.74-1.09-.73.08-.72.08-.72 1.2.08 1.84 1.22 1.84 1.22 1.07 1.8 2.81 1.28 3.5.98.11-.76.42-1.28.76-1.57-2.67-.3-5.47-1.31-5.47-5.83 0-1.29.47-2.34 1.23-3.17-.12-.3-.53-1.51.12-3.15 0 0 1-.32 3.3 1.21a11.6 11.6 0 0 1 6 0c2.3-1.53 3.3-1.21 3.3-1.21.65 1.64.24 2.85.12 3.15.77.83 1.23 1.88 1.23 3.17 0 4.53-2.81 5.53-5.49 5.82.43.37.81 1.1.81 2.22 0 1.6-.01 2.89-.01 3.28 0 .31.22.68.83.56A12.02 12.02 0 0 0 24 12.29C24 5.78 18.63.5 12 .5Z" />
+      </symbol>
+    </defs>
+  </svg>
+
+  <div class="orbs" aria-hidden="true">
+    <span class="orb orb-a"></span>
+    <span class="orb orb-b"></span>
+    <span class="orb orb-c"></span>
+  </div>
+
+  <!-- ───────────────── Nav ───────────────── -->
+  <header class="nav">
+    <a class="brand" href="#top">
+      <img src="pa-icon.svg" alt="" width="34" height="34" />
+      <span>Port Authority</span>
+    </a>
+    <nav class="nav-links">
+      <a href="#features">What it does</a>
+      <a href="#community">Community docks</a>
+      <a href="#limits">Honest bits</a>
+      <a class="nav-cta" href="https://github.com/harvey-withington/port-authority"><svg class="gh-ico" aria-hidden="true">
+          <use href="#i-github" />
+        </svg> GitHub</a>
+      <a href="https://github.com/harvey-withington/port-authority#readme">Docs</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <!-- ───────────────── Hero ───────────────── -->
+    <section class="hero">
+      <div class="hero-copy reveal">
+        <span class="pill"><span class="dot"></span> Public alpha · Windows</span>
+        <h1>Your USB tree, <span class="grad">explained.</span></h1>
+        <p class="lede">
+          Every USB tool shows you the tree. Port Authority tells you why the drive is slow,
+          which socket it should be in, and why your dock came up at half speed.
+        </p>
+        <p class="lede">
+          I built it because my new SSD was crawling. It was on the wrong port of the dock.
+          Of course it was. Nothing on the machine would tell me that, so now something does.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="https://github.com/harvey-withington/port-authority/releases/latest">
+            <svg viewBox="0 0 24 24" class="btn-ico" aria-hidden="true">
+              <path d="M12 3v12m0 0 4-4m-4 4-4-4" />
+              <path d="M5 19h14" />
+            </svg>
+            Get the Windows alpha
+          </a>
+          <a class="btn btn-ghost" href="https://github.com/harvey-withington/port-authority">View on GitHub</a>
+        </div>
+        <p class="fineprint">Free, MIT. Nothing leaves your machine. It reads your ports and never touches them.</p>
+      </div>
+
+      <div class="hero-art reveal">
+        <div class="board-glow"></div>
+        <figure class="shot shot-hero">
+          <img src="images/screenshots/ss-finding-faster-port.png"
+            alt="Port Authority showing a laptop, a CalDigit TS4 dock and its devices, with a finding: Corsair EX400U could be up to 4x faster on a different port."
+            width="1600" height="1000" loading="eager" decoding="async" />
+        </figure>
+      </div>
+    </section>
+
+    <!-- ───────────────── Pillars ───────────────── -->
+    <section class="pillars">
+      <div class="pillar reveal">
+        <svg class="ico">
+          <use href="#i-bulb" />
+        </svg>
+        <h3>Explains, not lists</h3>
+        <p>Findings in plain language, each with a <em>what to do</em>. The spec-nerd details are one click away, not
+          in your face.</p>
+      </div>
+      <div class="pillar reveal">
+        <svg class="ico">
+          <use href="#i-eye" />
+        </svg>
+        <h3>Reads, never writes</h3>
+        <p>It observes and measures. It never changes a device setting, and it never sends anything anywhere.</p>
+      </div>
+      <div class="pillar reveal">
+        <svg class="ico">
+          <use href="#i-shield" />
+        </svg>
+        <h3>Never guesses</h3>
+        <p>Where Windows cannot tell two situations apart, the app shows what it measured instead of the prettier
+          answer.</p>
+      </div>
+      <div class="pillar reveal">
+        <svg class="ico">
+          <use href="#i-api" />
+        </svg>
+        <h3>API first</h3>
+        <p>The window is a plain HTTP and WebSocket consumer of a local API. Build a better UI on it; I would love to
+          see one.</p>
+      </div>
+    </section>
+
+    <!-- ───────────────── The first finding ───────────────── -->
+    <section id="story" class="section">
+      <div class="section-head reveal">
+        <span class="eyebrow">The finding that started it</span>
+        <h2>Same drive, same dock, <span class="grad">a different hole.</span></h2>
+        <p>The first thing the app ever found, on my own desk. I had plugged a 40 Gbps SSD into the one USB-C socket
+          on the front of the dock, which is the 10 Gbps one. Moving it doubled the throughput. No new hardware, no
+          driver, just the right socket.</p>
+      </div>
+      <figure class="finding reveal">
+        <div class="finding-head">
+          <span class="finding-glyph" aria-hidden="true">!</span>
+          <span>Corsair EX400U could be up to 4x faster on a different port</span>
+        </div>
+        <p>Corsair EX400U supports 40 Gbps (USB4 / Thunderbolt), but it is plugged into the "USB-C Data" port on the
+          front of the CalDigit TS4, which is a 10 Gbps port. Everything it does is capped by that port.</p>
+        <p><strong>What to do:</strong> Move Corsair EX400U to one of the 2 "Thunderbolt 4" ports on the rear of the
+          CalDigit TS4.</p>
+        <figcaption>Verbatim from the app. The port names are the ones printed on the dock, because the knowledge base
+          knows which internal hub port is which printed socket.</figcaption>
+      </figure>
+    </section>
+
+    <!-- ───────────────── Features ───────────────── -->
+    <section id="features" class="section">
+      <div class="section-head reveal">
+        <span class="eyebrow">What it does</span>
+        <h2>See it, understand it, <span class="grad">fix it.</span></h2>
+        <p>A diagram you can actually read, a list of things worth knowing, and a timeline of what changed.</p>
+      </div>
+
+      <div class="grid">
+        <article class="card reveal">
+          <svg class="ico">
+            <use href="#i-graph" />
+          </svg>
+          <h3>A diagram with two readings</h3>
+          <p><em>Physical</em> draws the boxes on your desk: one computer, one dock, one cable. <em>Logical</em> draws
+            what Windows sees: every controller, every hub, every device. They disagree on purpose.</p>
+        </article>
+        <article class="card reveal">
+          <svg class="ico">
+            <use href="#i-wave" />
+          </svg>
+          <h3>Live throughput</h3>
+          <p>Per-device transfer rates from Windows' own event tracing, drawn as moving dashes on the cables. A
+            hub's uplink carries the sum of everything behind it, so you can watch a bottleneck fill up.</p>
+        </article>
+        <article class="card reveal">
+          <svg class="ico">
+            <use href="#i-chat" />
+          </svg>
+          <h3>Findings in plain language</h3>
+          <p>Severity, a one-line headline, the reasoning, and a concrete what-to-do. Click a device's flag to
+            filter; the device a finding names pulses in the diagram.</p>
+        </article>
+        <article class="card reveal">
+          <svg class="ico">
+            <use href="#i-clock" />
+          </svg>
+          <h3>What changed</h3>
+          <p>Hotplug events as they happen: what arrived, what left, what came up slower than last time. The moment
+            things broke is the clue everyone loses.</p>
+        </article>
+        <article class="card reveal">
+          <svg class="ico">
+            <use href="#i-box" />
+          </svg>
+          <h3>Docks as one box</h3>
+          <p>To Windows a Thunderbolt dock is four or five hubs across two controllers plus a router in a different
+            namespace. To you it is one dock. A knowledge base bridges the two, and you can teach it yours.</p>
+        </article>
+        <article class="card reveal">
+          <svg class="ico">
+            <use href="#i-palette" />
+          </svg>
+          <h3>Colour that means something</h3>
+          <p>Device classes each get a hue, link speeds run cool to hot, and link health is a separate ring, so
+            "how fast" and "is it right" never share a signal. There is a legend, and never colour alone.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ───────────────── Community docks spotlight ───────────────── -->
+    <section id="community" class="section spotlight">
+      <div class="spotlight-grid">
+        <div class="spotlight-copy reveal">
+          <span class="eyebrow">Community docks</span>
+          <h2>Teach it your dock, <span class="grad">once, for everyone.</span></h2>
+          <p>
+            A dock cannot tell Windows what it is. Only a person with the dock on their desk knows that
+            those five hubs are one UGREEN adapter, or that hub port 3 is the socket printed "USB-C Data".
+            So the knowledge base is a community project: a small public repository of docks and devices,
+            separate from the app and MIT-licensed, so the data outlives any one program that reads it.
+          </p>
+          <ul class="ticks">
+            <li>Unrecognised dock? The app asks, you name it and pick its sockets, and it draws as one box from then
+              on.</li>
+            <li>Press <em>Share with the community</em> and a pre-filled GitHub issue opens. No account inside the
+              app, no token, nothing sent behind your back.</li>
+            <li>A workflow validates the entry and opens a pull request; I review and merge.</li>
+            <li>Merged entries are published within minutes, and every copy of the app picks them up on its next
+              start.</li>
+            <li>A submission carries hub ids, names and ports. Never serial numbers.</li>
+          </ul>
+          <p class="soon-note">My own UGREEN adapter went in this week through that exact flow, without a hitch, so
+            the pipe is real. The dock list is short today. That is where you come in.</p>
+          <div class="cta-row">
+            <a class="btn btn-ghost" href="https://github.com/harvey-withington/usb-device-kb"><svg class="gh-ico"
+                aria-hidden="true">
+                <use href="#i-github" />
+              </svg> usb-device-kb on GitHub</a>
+          </div>
+        </div>
+        <div class="spotlight-art reveal">
+          <div class="kb-flow" aria-label="How a dock gets into the community knowledge base">
+            <article class="card kb-step">
+              <svg class="ico">
+                <use href="#i-plug" />
+              </svg>
+              <h3>Set it up</h3>
+              <p>Name the dock, pick which sockets are which.</p>
+            </article>
+            <svg class="kb-arrow" aria-hidden="true">
+              <use href="#i-arrow" />
+            </svg>
+            <article class="card kb-step">
+              <svg class="ico">
+                <use href="#i-share" />
+              </svg>
+              <h3>Share</h3>
+              <p>One button, one pre-filled issue.</p>
+            </article>
+            <svg class="kb-arrow" aria-hidden="true">
+              <use href="#i-arrow" />
+            </svg>
+            <article class="card kb-step">
+              <svg class="ico">
+                <use href="#i-check" />
+              </svg>
+              <h3>Checked</h3>
+              <p>Validated by a workflow, reviewed by a human.</p>
+            </article>
+            <svg class="kb-arrow" aria-hidden="true">
+              <use href="#i-arrow" />
+            </svg>
+            <article class="card kb-step">
+              <svg class="ico">
+                <use href="#i-merge" />
+              </svg>
+              <h3>Everywhere</h3>
+              <p>Published in minutes, fetched on next start.</p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ───────────────── A closer look ───────────────── -->
+    <section id="closer-look" class="section">
+      <div class="section-head reveal">
+        <span class="eyebrow">A closer look</span>
+        <h2>Real screens, <span class="grad">real desk.</span></h2>
+        <p>Captured from my own machine and dock. Serial numbers scrubbed, embarrassment left in.</p>
+      </div>
+      <div class="gallery">
+        <figure class="shot reveal">
+          <img src="images/screenshots/ss-diagram-physical.png"
+            alt="Physical view: this computer, a CalDigit TS4 dock drawn as one box with its sockets, and the devices plugged into it."
+            width="1600" height="1000" loading="lazy" decoding="async" />
+          <figcaption>Physical view. One computer, one dock, and the sockets down each edge.</figcaption>
+        </figure>
+        <figure class="shot reveal">
+          <img src="images/screenshots/ss-diagram-logical.png"
+            alt="Logical view: the host controller and every hub inside the dock drawn separately, as Windows reports them."
+            width="1600" height="1000" loading="lazy" decoding="async" />
+          <figcaption>Logical view. The same dock as Windows sees it: a chain of hubs.</figcaption>
+        </figure>
+        <figure class="shot reveal">
+          <img src="images/screenshots/ss-finding-uplink-20gbps.png"
+            alt="A finding: CalDigit TS4 is connected at 20 Gbps; it can do 40 Gbps."
+            width="1600" height="1000" loading="lazy" decoding="async" />
+          <figcaption>The dock came up at half speed. Everything behind it shares that link.</figcaption>
+        </figure>
+        <figure class="shot reveal">
+          <img src="images/screenshots/ss-tree.png"
+            alt="Tree view: the controller, hubs and devices as an indented list with speed badges."
+            width="1600" height="1000" loading="lazy" decoding="async" />
+          <figcaption>The tree, for when you want the list. Same colours, same collapse state.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ───────────────── Honest limits ───────────────── -->
+    <section id="limits" class="section">
+      <div class="section-head reveal">
+        <span class="eyebrow">The honest bits</span>
+        <h2>What Windows <span class="grad">won't tell us.</span></h2>
+        <p>The app reports what the OS knows, and the OS does not always know. These are limits of the data rather
+          than bugs, so they are worth recognising before filing one.</p>
+      </div>
+      <div class="grid grid-3">
+        <article class="card reveal">
+          <h3>Chargers are invisible</h3>
+          <p>A USB-PD brick is not a USB data device, so a socket with a charger in it reads as empty. Connector-level
+            data is on the list.</p>
+        </article>
+        <article class="card reveal">
+          <h3>Two chips, two boxes</h3>
+          <p>A cheap hub with two chips inside can draw as two boxes. Only its firmware knows better, and cheap
+            firmware rarely says. Recognised docks are folded; the rest is left as reported.</p>
+        </article>
+        <article class="card reveal">
+          <h3>Windows only, for now</h3>
+          <p>The Windows collector is the only one. The architecture is macOS-ready in the "write one provider" sense,
+            which is a real sense, but it is a weekend project.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ───────────────── Author's note ───────────────── -->
+    <section id="note" class="section">
+      <div class="note-card reveal">
+        <div class="note-head">
+          <img class="note-avatar" src="images/harvey.png" alt="Harvey" width="56" height="56" loading="lazy" />
+          <span class="eyebrow">Author's note</span>
+        </div>
+        <p>I'm a software engineer with ~35 years in, eyeing off retirement. Port Authority is the second thing to
+          come out of my weekends with Claude, after <a href="https://bruv-ai.app/">BRUV</a>, and it exists for the
+          most selfish reason there is: I wanted to know why my drive was slow, and every tool I tried answered
+          a different question.</p>
+        <p>The rule I keep coming back to is that the app must never guess. A pretty diagram that merges two boxes
+          that are not the same box is worse than an ugly one that tells the truth. So when the data runs out, the
+          app says so, and asks you instead. That is what the community dock list is for.</p>
+        <p>It is an alpha. It has been thoroughly tested on one laptop and one dock, which is to say: your machine
+          will find something mine could not. If it does, a scrubbed snapshot in an issue is the best present you
+          can give me. If it's not for you, no worries.</p>
+        <p class="note-sign">— Harvey</p>
+      </div>
+    </section>
+
+    <!-- ───────────────── Closing CTA ───────────────── -->
+    <section class="cta-final reveal">
+      <img src="pa-icon.svg" alt="" width="64" height="64" />
+      <h2>Try it, <span class="grad">if you like.</span></h2>
+      <p>Public alpha, Windows for now. The installer isn't code-signed, so SmartScreen will grumble at you.
+        (Boo hoo, Windows.)</p>
+      <div class="cta-row center">
+        <a class="btn btn-primary" href="https://github.com/harvey-withington/port-authority/releases/latest">Get the
+          Windows alpha</a>
+        <a class="btn btn-ghost" href="https://github.com/harvey-withington/port-authority">Star on GitHub</a>
+      </div>
+      <ul class="deal">
+        <li><strong>Free, MIT, no strings.</strong> No account, no telemetry, no paid tier.</li>
+        <li><strong>Reads, never writes.</strong> It cannot change a device setting because it has no code that
+          does.</li>
+        <li><strong>Weekend-maintained.</strong> Issues are read and appreciated; there's no SLA and no roadmap
+          promises.</li>
+        <li><strong>The data is yours, and everyone's.</strong> Your own dock entries live in a folder on your disk;
+          what you choose to share goes into an MIT repository anyone can use.</li>
+      </ul>
+    </section>
+  </main>
+
+  <!-- ───────────────── Footer ───────────────── -->
+  <footer class="footer">
+    <div class="footer-brand">
+      <img src="pa-icon.svg" alt="" width="26" height="26" />
+      <span>Port Authority</span>
+    </div>
+    <nav class="footer-links">
+      <a href="https://ko-fi.com/harveywithington" target="_blank" rel="noopener">☕ Buy me a coffee</a>
+      <a href="#features">What it does</a>
+      <a href="#community">Community docks</a>
+      <a href="https://github.com/harvey-withington/usb-device-kb">usb-device-kb</a>
+      <a href="https://github.com/harvey-withington/port-authority"><svg class="gh-ico" aria-hidden="true">
+          <use href="#i-github" />
+        </svg> GitHub</a>
+      <a href="https://bruv-ai.app/">BRUV</a>
+    </nav>
+  </footer>
+
+  <!-- Lightbox viewer for screenshots -->
+  <div class="lightbox" id="lightbox" hidden role="dialog" aria-modal="true" aria-label="Screenshot viewer">
+    <button class="lb-btn lb-close" type="button" aria-label="Close (Esc)">✕</button>
+    <button class="lb-btn lb-nav lb-prev" type="button" aria-label="Previous">‹</button>
+    <figure class="lb-figure">
+      <img class="lb-img" src="" alt="" />
+      <figcaption class="lb-cap"></figcaption>
+    </figure>
+    <button class="lb-btn lb-nav lb-next" type="button" aria-label="Next">›</button>
+  </div>
+
+  <script>
+    // Reveal-on-scroll: progressive enhancement, respects reduced motion.
+    (function () {
+      var els = document.querySelectorAll('.reveal');
+      if (!('IntersectionObserver' in window) ||
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        els.forEach(function (e) { e.classList.add('in'); });
+        return;
+      }
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          if (en.isIntersecting) { en.target.classList.add('in'); io.unobserve(en.target); }
+        });
+      }, { threshold: 0.12 });
+      els.forEach(function (e) { io.observe(e); });
+    })();
+
+    // Lightbox: click any screenshot to view it full-size, with keyboard
+    // and prev/next navigation across all shots on the page.
+    (function () {
+      var imgs = Array.prototype.slice.call(document.querySelectorAll('.shot img'));
+      var lb = document.getElementById('lightbox');
+      if (!imgs.length || !lb) return;
+      var lbImg = lb.querySelector('.lb-img');
+      var lbCap = lb.querySelector('.lb-cap');
+      var idx = 0;
+
+      function captionFor(img) {
+        var fig = img.closest('figure');
+        var fc = fig && fig.querySelector('figcaption');
+        return fc ? fc.textContent : (img.alt || '');
+      }
+      function show(i) {
+        idx = (i + imgs.length) % imgs.length;
+        var img = imgs[idx];
+        lbImg.src = img.currentSrc || img.src;
+        lbImg.alt = img.alt || '';
+        lbCap.textContent = captionFor(img);
+      }
+      function open(i) {
+        show(i);
+        lb.hidden = false;
+        document.body.style.overflow = 'hidden';
+      }
+      function close() {
+        lb.hidden = true;
+        document.body.style.overflow = '';
+        lbImg.src = '';
+      }
+
+      imgs.forEach(function (img, i) {
+        img.addEventListener('click', function () { open(i); });
+      });
+      lb.querySelector('.lb-close').addEventListener('click', close);
+      lb.querySelector('.lb-prev').addEventListener('click', function (e) { e.stopPropagation(); show(idx - 1); });
+      lb.querySelector('.lb-next').addEventListener('click', function (e) { e.stopPropagation(); show(idx + 1); });
+      lb.addEventListener('click', close);
+      document.addEventListener('keydown', function (e) {
+        if (lb.hidden) return;
+        if (e.key === 'Escape') close();
+        else if (e.key === 'ArrowLeft') show(idx - 1);
+        else if (e.key === 'ArrowRight') show(idx + 1);
+      });
+    })();
+  </script>
+</body>
+
+</html>

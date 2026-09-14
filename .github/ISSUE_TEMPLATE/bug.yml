@@ -1,0 +1,44 @@
+name: Something looks wrong
+description: A device, dock or finding the app got wrong, or a crash.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks. The most useful thing you can attach is a **scrubbed snapshot**: it lets the
+        problem be replayed here without your hardware. In the app folder, or from a
+        checkout:
+
+        ```
+        pactl snapshot --pretty > my-machine.json
+        go run ./tools/scrubfixture my-machine.json
+        ```
+
+        The scrubber replaces serial numbers and your machine's name; the makes and models
+        stay, since they describe the hardware rather than you. Have a look through it before
+        attaching. If you would rather not, a screenshot still helps.
+  - type: textarea
+    id: what
+    attributes:
+      label: What did the app show, and what did you expect?
+      placeholder: "The TS4 draws as two boxes. / It says my SSD is on a 10 Gbps port but it is on the Thunderbolt one."
+    validations:
+      required: true
+  - type: textarea
+    id: setup
+    attributes:
+      label: What is plugged in?
+      description: Computer, dock (make and model), the devices involved, and which sockets they are in.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: App version and Windows version
+      placeholder: "v0.1.0-alpha, Windows 11 24H2"
+  - type: textarea
+    id: snapshot
+    attributes:
+      label: Scrubbed snapshot (optional)
+      description: Drag the scrubbed JSON file here, or paste it.
+      render: json

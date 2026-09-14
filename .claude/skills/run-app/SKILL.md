@@ -80,9 +80,14 @@ Then Read the PNG and actually look at it. Gotchas that were hit:
   before the capture; without it the screenshot shows the connecting state.
 - The screenshot is dark theme (system preference). Light theme cannot be
   forced from the command line; tokens in `src/app.css` cover both.
-- Edge cannot click, so the Tree view and hub toggles are only reachable by
-  changing the default in `src/lib/view.svelte.ts` temporarily, or by trusting
-  the component tests in `src/components/components.test.ts`.
+- Edge cannot click. To capture the Tree view or the Logical reading, drop a
+  launcher page into `frontend/dist` that seeds the two localStorage keys
+  (`pa-connected-view`, `pa-detail-level`, see `src/lib/view.svelte.ts`) and
+  then sets `location.href` to the app URL; screenshot the launcher. Delete
+  it afterwards. Hub toggles remain covered only by the component tests.
+- Headless Edge will not go narrower than about 500 CSS px whatever
+  `--window-size` says (the capture is cropped, not reflowed). For a phone
+  layout, screenshot a wrapper page holding a 400px-wide iframe instead.
 
 ## 4. Stop what you started
 

@@ -6,7 +6,7 @@ The full spec is in [docs/port-authority-handoff.md](docs/port-authority-handoff
 
 ## Status
 
-**Beta.** The Windows collector, the insight engine, the local API and the desktop UI all work on real hardware. What is not settled is how much of a machine the data can actually describe — see [Known limitations](#known-limitations) before filing a bug, because the most surprising results are usually Windows telling us less than you would expect.
+**Alpha.** The Windows collector, the insight engine, the local API and the desktop UI all work on real hardware, and it has been tested on exactly one laptop and one dock. What is not settled is how much of a machine the data can actually describe — see [Known limitations](#known-limitations) before filing a bug, because the most surprising results are usually Windows telling us less than you would expect.
 
 Phase 0 (spike) is complete: the hub IOCTL walk produces a JSON topology dump, and live per-device throughput via ETW is proven. See [docs/decisions/0001-live-throughput-and-elevation.md](docs/decisions/0001-live-throughput-and-elevation.md).
 
@@ -33,6 +33,12 @@ The first real finding, from the fixture captured on DEVIANT:
   "USB-C Data" port on the front of the CalDigit TS4, which is a 10 Gbps port.
   What to do: Move Corsair EX400U to one of the 2 "Thunderbolt 4" ports on the rear of the CalDigit TS4.
 ```
+
+## Install
+
+Grab `port-authority-amd64-installer.exe` from the [latest release](https://github.com/harvey-withington/port-authority/releases/latest) and run it, or the portable `port-authority.exe` next to it. The build is not code-signed yet, so Windows SmartScreen will warn on first run: **More info → Run anyway**. Signing costs money that a free weekend project does not obviously justify; build from source if you would rather not click through.
+
+Live per-device throughput needs your account in the **Performance Log Users** group (one-time, then sign out and in). Everything else works without it. The website is at [harvey-withington.github.io/port-authority](https://harvey-withington.github.io/port-authority/).
 
 ## Desktop app
 
@@ -72,7 +78,7 @@ The API binds to loopback only, and browsers are held to this app's own origins,
 | `core/model` | Platform-neutral domain model. Every JSON shape here is public API. |
 | `core/provider` | The `Provider` interface every OS implements. |
 | `core/provider/mock` | Replays a saved snapshot. Drives the app without hardware. |
-| `core/kb` | Knowledge base: usb.ids with `overrides.json`, `docks.json` (hubs per dock, router strings, port maps with printed labels), `devices.json` (capabilities devices do not report). Three layers: shipped, shared (community, not fetched yet) and the user's own docks in `<UserConfigDir>/PortAuthority/kb`, added from the app; see `docs/decisions/0002-knowledge-base-layers.md`. |
+| `core/kb` | Knowledge base: usb.ids with `overrides.json`, `docks.json` (hubs per dock, router strings, port maps with printed labels), `devices.json` (capabilities devices do not report). Three layers: shipped, shared (the community knowledge base, fetched from [usb-device-kb](https://github.com/harvey-withington/usb-device-kb)) and the user's own docks in `<UserConfigDir>/PortAuthority/kb`, added from the app; see `docs/decisions/0002-knowledge-base-layers.md`. |
 | `core/enrich` | Annotates a topology with knowledge-base data (vendor and product names). |
 | `core/insight` | Rule engine producing plain-language findings with evidence and confidence. |
 | `core/api` | Local REST API (`/api/v1/topology`, `/insights`, `/devices/{id}`, `/capabilities`). |
@@ -81,6 +87,7 @@ The API binds to loopback only, and browsers are held to this app's own origins,
 | `cmd/pactl` | Collector CLI. Later the headless API service. |
 | `testdata/fixtures` | Captured real-world topologies used as regression fixtures. |
 | `tools/scrubfixture` | Replaces device serial numbers and the machine's name in a fixture with placeholders before it is shared. |
+| `website` | The GitHub Pages site. Static, no build step; deployed by `.github/workflows/deploy-pages.yml`. |
 | `docs` | Public: the spec, decision records, anything a contributor should read. Committed here. |
 | `plan` | Private: TODOs and planning notes. Its own separate private git repository, never pushed with this one. |
 

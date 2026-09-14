@@ -1,0 +1,131 @@
+# Builds the Windows app and its NSIS installer when a v* tag is pushed and
+# creates a DRAFT GitHub release with both attached. Publish the draft by
+# hand after pasting the release notes; builds ship unsigned for now.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Version tag to build (e.g. v0.1.0-alpha)
+        required: true
+
+# The default GITHUB_TOKEN is read-only; creating a release needs write.
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows release
+    runs-on: windows-latest
+    outputs:
+      version: ${{ steps.version.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "value=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "value=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.10.1
+
+      # `wails build -nsis` needs makensis on the Windows PATH. Wails is a
+      # native process, so the directory must be added in C:\ form; an
+      # MSYS-style path is ignored and the installer is silently skipped.
+      - name: Install NSIS
+        shell: pwsh
+        run: |
+          choco install nsis -y --no-progress
+          $mk = "C:\Program Files (x86)\NSIS\makensis.exe"
+          if (-not (Test-Path $mk)) {
+            $found = Get-ChildItem "C:\Program Files*" -Recurse -Filter makensis.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+            if ($found) { $mk = $found.FullName } else { Write-Error "makensis.exe not found after 'choco install nsis'"; exit 1 }
+          }
+          Add-Content -Path $env:GITHUB_PATH -Value (Split-Path $mk)
+          & $mk /VERSION
+
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
+
+      # Wails generates the bindings and builds the frontend itself. The
+      # version is stamped into the binary (main.Version) and shown in the
+      # app; the productVersion in wails.json feeds the installer metadata.
+      - name: Build app + installer
+        shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          wails build -nsis -clean -trimpath -ldflags "-X main.Version=${VERSION}"
+
+      - name: Assert installer was produced
+        shell: bash
+        run: |
+          ls -l build/bin
+          test -f build/bin/port-authority-amd64-installer.exe || {
+            echo "::error::NSIS installer missing from build/bin; check the makensis output above"
+            exit 1
+          }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: port-authority-${{ steps.version.outputs.value }}-windows
+          path: build/bin/*.exe
+          retention-days: 7
+
+  release:
+    name: Publish draft release
+    needs: build-windows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: port-authority-${{ needs.build-windows.outputs.version }}-windows
+          path: dist
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.build-windows.outputs.version }}
+          name: Port Authority ${{ needs.build-windows.outputs.version }}
+          draft: true
+          # Every release is an alpha for now; marking it a pre-release would
+          # hide it from /releases/latest, which the website links to.
+          prerelease: false
+          files: dist/*
+          body: |
+            ## Port Authority ${{ needs.build-windows.outputs.version }}
+
+            <!-- Release notes go here before publishing the draft. -->
+
+            ### Install
+
+            Download `port-authority-amd64-installer.exe` below and run it.
+            The build is not code-signed yet, so Windows SmartScreen will warn
+            on first run: **More info → Run anyway**. The portable
+            `port-authority.exe` needs no install.
+
+            ### Live throughput
+
+            Per-device transfer rates need a one-time addition of your account
+            to the **Performance Log Users** group (then sign out and in).
+            Everything else works without it.

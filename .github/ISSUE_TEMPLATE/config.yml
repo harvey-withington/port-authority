@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Share a dock with the community
+    url: https://github.com/harvey-withington/usb-device-kb/issues/new/choose
+    about: Dock and device entries live in the usb-device-kb repository. The app's "Share with the community" button opens this form pre-filled.
+  - name: Known limitations
+    url: https://github.com/harvey-withington/port-authority#known-limitations
+    about: Some surprising results are Windows telling the app less than you would expect. Worth a look before filing.

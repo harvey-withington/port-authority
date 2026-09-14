@@ -39,8 +39,8 @@ insight asks the user instead. Keep it that way.
 ## Knowledge base
 
 `core/kb` stacks three layers, later ones winning by dock id and by hub:
-shipped (`data/docks.json`, `data/devices.json`), shared (community, not
-fetched yet) and local (the user's own, written by the app). All layers
+shipped (`data/docks.json`, `data/devices.json`), shared (community, fetched from
+usb-device-kb) and local (the user's own, written by the app). All layers
 use the `DockEntry` schema. See `docs/decisions/0002-knowledge-base-layers.md`.
 
 The data itself lives in the public MIT repo
